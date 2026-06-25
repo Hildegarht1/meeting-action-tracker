@@ -1,0 +1,91 @@
+{
+  "name": "ActionFlow Meeting Action Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "actionflow-meeting-intake",
+        "method": "POST",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\\nconst transcript = String(body.transcript || '');\\nconst lines = transcript.split(/\\\\n|(?<=[.!?])\\\\s+/).map(s => s.trim()).filter(Boolean);\\nconst actions = [];\\nconst decisions = [];\\nconst risks = [];\\nconst blockers = [];\\nfunction ownerFrom(line) { const m = line.match(/^([A-Z][a-z]+)\\\\s+(will|owns|needs|should|has to|is responsible)/i) || line.match(/owner:?\\\\s*([A-Z][a-z]+)/i); return m ? m[1] : 'Unassigned'; }\\nfunction dueFrom(line) { const m = line.match(/\\\\b(by|before|due|on)\\\\s+([A-Za-z]+day|tomorrow|next week|next [A-Za-z]+|[A-Z][a-z]+\\\\s+\\\\d{1,2})/i); return m ? m[2] : 'No date'; }\\nfunction priorityFrom(line) { const lower = line.toLowerCase(); if (/(blocker|risk|urgent|delay|missing|cannot|failed)/.test(lower)) return 'high'; if (/(should|needs|confirm|review)/.test(lower)) return 'medium'; return 'low'; }\\nfor (const line of lines) { const lower = line.toLowerCase(); if (/^decision:|decision\\\\b|decided\\\\b/.test(lower)) decisions.push(line.replace(/^decision:\\\\s*/i, '')); else if (/^risk:|risk\\\\b|may delay|might delay|concern/.test(lower)) risks.push({ text: line.replace(/^risk:\\\\s*/i, ''), severity: priorityFrom(line) }); else if (/^blocker:|blocker\\\\b|blocked|missing|not shared|not confirmed/.test(lower)) blockers.push({ text: line.replace(/^blocker:\\\\s*/i, ''), owner: ownerFrom(line), severity: priorityFrom(line) }); else if (/\\\\b(will|owns|needs to|has to|should|responsible|prepare|send|finalize|update|confirm|share|complete)\\\\b/i.test(line)) actions.push({ task: line, owner: ownerFrom(line), due: dueFrom(line), priority: priorityFrom(line), status: 'open' }); }\\nreturn [{ json: { meeting_title: body.meeting_title || 'Meeting notes', transcript, actions, decisions, risks, blockers, counts: { actions: actions.length, decisions: decisions.length, risks: risks.length, blockers: blockers.length } } }];"
+      },
+      "name": "Extract Structured Meeting Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an operations assistant. Write a concise manager-ready follow-up summary using only this structured meeting JSON. Do not invent owners, dates, tasks, or decisions.\\n\\n{{$json}}"
+      },
+      "name": "AI Follow-up Summary",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Meeting History"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+            "meeting_title": "={{ $('Extract Structured Meeting Data').first().json.meeting_title }}",
+            "action_count": "={{ $('Extract Structured Meeting Data').first().json.counts.actions }}",
+            "decision_count": "={{ $('Extract Structured Meeting Data').first().json.counts.decisions }}",
+            "risk_count": "={{ $('Extract Structured Meeting Data').first().json.counts.risks + $('Extract Structured Meeting Data').first().json.counts.blockers }}",
+            "structured_json": "={{ JSON.stringify($('Extract Structured Meeting Data').first().json) }}"
+          }
+        }
+      },
+      "name": "Append Google Sheets History",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [780, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ...$('Extract Structured Meeting Data').first().json, follow_up_summary: $('AI Follow-up Summary').first().json.text || $('AI Follow-up Summary').first().json.output || '' } }}"
+      },
+      "name": "Respond To Dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1040, 0]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Extract Structured Meeting Data", "type": "main", "index": 0 }]]
+    },
+    "Extract Structured Meeting Data": {
+      "main": [[{ "node": "AI Follow-up Summary", "type": "main", "index": 0 }]]
+    },
+    "AI Follow-up Summary": {
+      "main": [[{ "node": "Append Google Sheets History", "type": "main", "index": 0 }]]
+    },
+    "Append Google Sheets History": {
+      "main": [[{ "node": "Respond To Dashboard", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}
