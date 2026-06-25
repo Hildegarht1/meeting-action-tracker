@@ -1,6 +1,6 @@
 # GitHub Pages Guide
 
-Use GitHub Pages to give recruiters a clickable project page.
+Use GitHub Pages to publish the ActionFlow dashboard as a clickable web app.
 
 ## Recommended Repository Name
 
@@ -24,13 +24,12 @@ GitHub will give you a URL like:
 https://YOUR_USERNAME.github.io/meeting-action-tracker/
 ```
 
-## What To Share
+## Published Links
 
-Use the GitHub Pages link as the main recruiter-facing project link.
+Use the GitHub Pages link as the main live demo link.
 
-Use the GitHub repository link when applications ask for source code or technical artifacts.
+Use the GitHub repository link when source code or technical artifacts are needed.
 
 ## What Not To Include
 
 Do not publish API keys, OAuth credentials, private n8n webhook URLs, or private Google Sheets links.
-

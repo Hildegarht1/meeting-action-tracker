@@ -17,7 +17,7 @@ It extracts:
 
 Teams often leave meetings with vague notes and no clear ownership. ActionFlow turns free-form transcripts into an operational follow-up board that can feed task tools, reminders, and reporting.
 
-## What Recruiters Can See
+## Features
 
 The hosted page includes:
 
@@ -44,15 +44,10 @@ React/static dashboard
 
 ## Current Status
 
-The hosted dashboard works as a self-contained demo so recruiters can click and use it immediately.
+The hosted dashboard works as a self-contained demo. The workflow design documents how the same logic can connect to n8n, Google Sheets, task tools, and reminder automation.
 
 The n8n workflow design is documented in:
 
 ```text
 workflows/n8n-workflow-design.md
 ```
-
-## Portfolio CV Bullet
-
-Built ActionFlow, a hosted meeting automation dashboard that extracts action items, owners, deadlines, decisions, and risks from free-form meeting notes. Designed an n8n-ready workflow architecture for webhook intake, structured JSON extraction, AI follow-up summaries, Google Sheets history logging, task creation, and reminder automation.
-
