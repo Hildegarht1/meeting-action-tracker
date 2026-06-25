@@ -19,8 +19,6 @@ Teams often leave meetings with vague notes and no clear ownership. ActionFlow t
 
 ## Features
 
-The hosted page includes:
-
 - transcript input
 - sample meeting notes
 - extracted action board
@@ -44,7 +42,7 @@ React/static dashboard
 
 ## Current Status
 
-The hosted dashboard works as a self-contained demo. The workflow design documents how the same logic can connect to n8n, Google Sheets, task tools, and reminder automation.
+The dashboard works as a self-contained demo. The workflow design documents how the same logic can connect to n8n, Google Sheets, task tools, and reminder automation.
 
 The n8n workflow design is documented in:
 

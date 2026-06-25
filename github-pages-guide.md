@@ -1,6 +1,6 @@
 # GitHub Pages Guide
 
-Use GitHub Pages to publish the ActionFlow dashboard as a clickable web app.
+Use GitHub Pages to publish the ActionFlow dashboard.
 
 ## Recommended Repository Name
 
@@ -26,9 +26,9 @@ https://YOUR_USERNAME.github.io/meeting-action-tracker/
 
 ## Published Links
 
-Use the GitHub Pages link as the main live demo link.
+Use the GitHub Pages link as the live app link.
 
-Use the GitHub repository link when source code or technical artifacts are needed.
+Use the GitHub repository link for source code and technical artifacts.
 
 ## What Not To Include
 

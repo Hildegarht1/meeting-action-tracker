@@ -4,11 +4,11 @@
 
 ```text
 Webhook Trigger
-→ Code Node: Extract Actions / Decisions / Risks
-→ AI Agent: Write Follow-up Summary
-→ Google Sheets: Append History
-→ Task Tool: Create Tasks
-→ Respond To Webhook
+-> Code Node: Extract Actions / Decisions / Risks
+-> AI Agent: Write Follow-up Summary
+-> Google Sheets: Append History
+-> Task Tool: Create Tasks
+-> Respond To Webhook
 ```
 
 ## Webhook Input
@@ -53,4 +53,3 @@ risk_count
 summary
 structured_json
 ```
-
