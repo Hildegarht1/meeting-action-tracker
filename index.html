@@ -850,7 +850,12 @@ Blocker: client has not shared access to the knowledge base.`
 
       async function readWebhookResponse(response) {
         const text = await response.text();
-        return parseWebhookResponse(text);
+        try {
+          return parseWebhookResponse(text);
+        } catch (error) {
+          const preview = text.slice(0, 260).replace(/\s+/g, " ");
+          throw new Error(`Could not parse Make response as JSON. Response started with: ${preview || "(empty)"}`);
+        }
       }
 
       function modeLabel(mode) {
@@ -955,10 +960,11 @@ Blocker: client has not shared access to the knowledge base.`
             mode = "make";
           } catch (error) {
             result = extract(text);
-            result.summary = `${result.summary} The Make webhook was unavailable, so local extraction was used.`;
+            result.webhookError = error.message || "Unknown webhook error";
+            result.summary = `${result.summary} The Make webhook could not be used, so local extraction was used. Error: ${result.webhookError}`;
             mode = "fallback";
             $("#modeDot").className = "dot fallback";
-            $("#modeStatus").textContent = "Make webhook unavailable; local fallback used";
+            $("#modeStatus").textContent = `Make webhook issue: ${result.webhookError}`;
           }
         } else {
           result = extract(text);
