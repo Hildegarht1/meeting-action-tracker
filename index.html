@@ -799,17 +799,12 @@ Blocker: client has not shared access to the knowledge base.`
 
       function normalizeBackendResult(data, text) {
         const local = extract(text);
-        if (typeof data === "string") {
-          data = parseWebhookResponse(data);
-        }
-        if (data.response && typeof data.response === "object") data = data.response;
-        if (data.json_response && typeof data.json_response === "object") data = data.json_response;
-        if (data.JSON_response && typeof data.JSON_response === "object") data = data.JSON_response;
+        data = unwrapWebhookData(data);
 
-        const actions = Array.isArray(data.actions) ? data.actions : local.actions;
-        const decisions = Array.isArray(data.decisions) ? data.decisions : local.decisions;
-        const risks = Array.isArray(data.risks) ? data.risks : local.risks;
-        const blockers = Array.isArray(data.blockers) ? data.blockers : local.blockers;
+        const actions = asArray(data.actions) || local.actions;
+        const decisions = asArray(data.decisions) || local.decisions;
+        const risks = asArray(data.risks) || local.risks;
+        const blockers = asArray(data.blockers) || local.blockers;
         const followUpSummary = data.followUpSummary || data.follow_up_summary || data.followup_summary || local.followUpSummary;
 
         return {
@@ -833,6 +828,46 @@ Blocker: client has not shared access to the knowledge base.`
           followUpSummary,
           summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`
         };
+      }
+
+      function unwrapWebhookData(data) {
+        if (typeof data === "string") return unwrapWebhookData(parseWebhookResponse(data));
+        if (!data || typeof data !== "object") return {};
+
+        const wrapperKeys = [
+          "response",
+          "Response",
+          "result",
+          "Result",
+          "output",
+          "Output",
+          "text",
+          "Text",
+          "answer",
+          "Answer",
+          "json_response",
+          "JSON_response",
+          "jsonResponse",
+          "JSON Response",
+          "JSON response"
+        ];
+
+        for (const key of wrapperKeys) {
+          if (data[key] !== undefined) return unwrapWebhookData(data[key]);
+        }
+
+        if (Array.isArray(data) && data.length === 1) return unwrapWebhookData(data[0]);
+        if (data.bundle && typeof data.bundle === "object") return unwrapWebhookData(data.bundle);
+        return data;
+      }
+
+      function asArray(value) {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string" && value.trim()) {
+          const parsed = parseWebhookResponse(value);
+          return Array.isArray(parsed) ? parsed : null;
+        }
+        return null;
       }
 
       function parseWebhookResponse(raw) {
