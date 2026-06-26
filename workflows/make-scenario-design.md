@@ -18,7 +18,7 @@ Custom Webhook
 
 Create a Make scenario and start with a Custom Webhook module.
 
-Expected incoming JSON:
+Expected incoming fields:
 
 ```json
 {

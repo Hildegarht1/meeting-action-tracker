@@ -54,7 +54,7 @@ workflows/make-scenario-design.md
 
 ## Webhook Payload
 
-When a Make webhook URL is saved in the dashboard, ActionFlow sends:
+When a Make webhook URL is saved in the dashboard, ActionFlow sends these fields as a browser-friendly form payload:
 
 ```json
 {

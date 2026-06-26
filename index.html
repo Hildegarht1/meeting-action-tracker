@@ -799,6 +799,13 @@ Blocker: client has not shared access to the knowledge base.`
 
       function normalizeBackendResult(data, text) {
         const local = extract(text);
+        if (typeof data === "string") {
+          data = parseWebhookResponse(data);
+        }
+        if (data.response && typeof data.response === "object") data = data.response;
+        if (data.json_response && typeof data.json_response === "object") data = data.json_response;
+        if (data.JSON_response && typeof data.JSON_response === "object") data = data.JSON_response;
+
         const actions = Array.isArray(data.actions) ? data.actions : local.actions;
         const decisions = Array.isArray(data.decisions) ? data.decisions : local.decisions;
         const risks = Array.isArray(data.risks) ? data.risks : local.risks;
@@ -826,6 +833,24 @@ Blocker: client has not shared access to the knowledge base.`
           followUpSummary,
           summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`
         };
+      }
+
+      function parseWebhookResponse(raw) {
+        let text = raw.trim();
+        if (!text) throw new Error("Make returned an empty response");
+
+        if (text.startsWith("```")) {
+          text = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+        }
+
+        const parsed = JSON.parse(text);
+        if (typeof parsed === "string") return parseWebhookResponse(parsed);
+        return parsed;
+      }
+
+      async function readWebhookResponse(response) {
+        const text = await response.text();
+        return parseWebhookResponse(text);
       }
 
       function modeLabel(mode) {
@@ -914,18 +939,19 @@ Blocker: client has not shared access to the knowledge base.`
 
         if (webhookUrl) {
           try {
+            const payload = new URLSearchParams({
+              meeting_title: title,
+              transcript: text,
+              source: "actionflow-dashboard"
+            });
+
             const response = await fetch(webhookUrl, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                meeting_title: title,
-                transcript: text,
-                source: "actionflow-dashboard"
-              })
+              body: payload
             });
 
             if (!response.ok) throw new Error(`Make returned ${response.status}`);
-            result = normalizeBackendResult(await response.json(), text);
+            result = normalizeBackendResult(await readWebhookResponse(response), text);
             mode = "make";
           } catch (error) {
             result = extract(text);
