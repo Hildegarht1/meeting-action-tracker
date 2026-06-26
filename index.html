@@ -39,6 +39,7 @@
 
       button,
       textarea,
+      input,
       select {
         font: inherit;
       }
@@ -208,15 +209,47 @@
         font-size: 18px;
       }
 
-      textarea {
+      textarea,
+      input[type="url"] {
         width: 100%;
-        min-height: 220px;
-        resize: vertical;
         border: 1px solid var(--line);
         border-radius: 8px;
         padding: 14px;
         color: var(--ink);
         background: white;
+      }
+
+      textarea {
+        min-height: 220px;
+        resize: vertical;
+      }
+
+      .endpoint-form {
+        display: grid;
+        gap: 10px;
+      }
+
+      .endpoint-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--amber);
+      }
+
+      .dot.live {
+        background: var(--green);
+      }
+
+      .dot.fallback {
+        background: var(--red);
       }
 
       .controls,
@@ -577,10 +610,22 @@
               </div>
             </div>
             <div class="card">
+              <h3>Automation endpoint</h3>
+              <p class="summary">Connect a Make custom webhook to process notes through a live scenario. Leave it empty to use local extraction.</p>
+              <div class="endpoint-form">
+                <input id="webhookUrl" type="url" placeholder="https://hook.eu2.make.com/..." />
+                <div class="controls">
+                  <button class="button" id="saveWebhook" type="button">Save endpoint</button>
+                  <button class="button ghost" id="useLocal" type="button">Use local mode</button>
+                </div>
+                <div class="endpoint-status"><span class="dot" id="modeDot"></span><span id="modeStatus">Local extraction mode</span></div>
+              </div>
+            </div>
+            <div class="card">
               <h3>Operational value</h3>
               <div class="list">
                 <div class="item">Shows structured extraction from messy text.</div>
-                <div class="item">Maps naturally to n8n, Google Sheets, Slack, Teams, and task tools.</div>
+                <div class="item">Maps naturally to Make, Google Sheets, Slack, Teams, and task tools.</div>
                 <div class="item">Demonstrates automation logic, dashboards, and operational follow-up.</div>
               </div>
             </div>
@@ -591,7 +636,7 @@
           <h3>Visible automation workflow</h3>
           <p>
             The hosted app includes local extraction for demos. The automation-ready workflow below shows how
-            the same logic connects to n8n, AI wording, task creation, reminders, and Google Sheets history.
+            the same logic connects to Make, AI wording, task creation, reminders, and Google Sheets history.
           </p>
           <div class="workflow-canvas">
             <div class="node-row">
@@ -659,6 +704,7 @@ Blocker: client has not shared access to the knowledge base.`
       };
 
       let history = JSON.parse(localStorage.getItem("actionFlowHistory") || "[]");
+      let webhookUrl = localStorage.getItem("actionFlowWebhookUrl") || "";
       let activeTab = "actions";
       let activeId = null;
 
@@ -751,6 +797,51 @@ Blocker: client has not shared access to the knowledge base.`
         };
       }
 
+      function normalizeBackendResult(data, text) {
+        const local = extract(text);
+        const actions = Array.isArray(data.actions) ? data.actions : local.actions;
+        const decisions = Array.isArray(data.decisions) ? data.decisions : local.decisions;
+        const risks = Array.isArray(data.risks) ? data.risks : local.risks;
+        const blockers = Array.isArray(data.blockers) ? data.blockers : local.blockers;
+        const followUpSummary = data.followUpSummary || data.follow_up_summary || data.followup_summary || local.followUpSummary;
+
+        return {
+          actions: actions.map(action => ({
+            task: action.task || action.text || "Follow-up item",
+            owner: action.owner || "Unassigned",
+            due: action.due || action.deadline || "No date",
+            priority: action.priority || "medium",
+            status: action.status || "open"
+          })),
+          decisions: decisions.map(item => typeof item === "string" ? item : item.text || item.decision || "Decision recorded"),
+          risks: risks.map(item => ({
+            text: item.text || item.risk || "Risk recorded",
+            severity: item.severity || item.priority || "medium"
+          })),
+          blockers: blockers.map(item => ({
+            text: item.text || item.blocker || "Blocker recorded",
+            owner: item.owner || "Unassigned",
+            severity: item.severity || item.priority || "medium"
+          })),
+          followUpSummary,
+          summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`
+        };
+      }
+
+      function modeLabel(mode) {
+        if (mode === "make") return "Make webhook";
+        if (mode === "fallback") return "Local fallback";
+        return "Local extraction";
+      }
+
+      function updateEndpointStatus() {
+        const dot = $("#modeDot");
+        const status = $("#modeStatus");
+        $("#webhookUrl").value = webhookUrl;
+        dot.className = `dot${webhookUrl ? " live" : ""}`;
+        status.textContent = webhookUrl ? "Make webhook connected" : "Local extraction mode";
+      }
+
       function render(entry) {
         const result = entry.result;
         $("#mTasks").textContent = result.actions.length;
@@ -766,7 +857,7 @@ Blocker: client has not shared access to the knowledge base.`
         ];
 
         $("#result").innerHTML = `
-          <span class="status">Processed</span>
+          <span class="status">${modeLabel(entry.mode)}</span>
           <h3>${entry.title}</h3>
           <p class="summary">${result.summary}</p>
           <div class="summary-box">
@@ -814,16 +905,46 @@ Blocker: client has not shared access to the knowledge base.`
         $("#tabContent").innerHTML = `<div class="list">${html}</div>`;
       }
 
-      function processTranscript() {
+      async function processTranscript() {
         const text = $("#transcript").value.trim();
         if (!text) return;
         const title = text.split(/\n/).find(Boolean)?.replace(/:$/, "") || "Meeting notes";
+        let result;
+        let mode = "local";
+
+        if (webhookUrl) {
+          try {
+            const response = await fetch(webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                meeting_title: title,
+                transcript: text,
+                source: "actionflow-dashboard"
+              })
+            });
+
+            if (!response.ok) throw new Error(`Make returned ${response.status}`);
+            result = normalizeBackendResult(await response.json(), text);
+            mode = "make";
+          } catch (error) {
+            result = extract(text);
+            result.summary = `${result.summary} The Make webhook was unavailable, so local extraction was used.`;
+            mode = "fallback";
+            $("#modeDot").className = "dot fallback";
+            $("#modeStatus").textContent = "Make webhook unavailable; local fallback used";
+          }
+        } else {
+          result = extract(text);
+        }
+
         const entry = {
           id: Date.now().toString(),
           at: new Date().toISOString(),
           title,
           transcript: text,
-          result: extract(text)
+          mode,
+          result
         };
         history = [entry, ...history].slice(0, 20);
         activeId = entry.id;
@@ -869,7 +990,7 @@ Blocker: client has not shared access to the knowledge base.`
           const when = new Date(entry.at);
           return `<button class="${entry.id === activeId ? "active" : ""}" data-id="${entry.id}">
             <b>${entry.title}</b>
-            <span>${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${entry.result.actions.length} actions</span>
+            <span>${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${entry.result.actions.length} actions</span>
           </button>`;
         }).join("");
         box.querySelectorAll("button").forEach(button => {
@@ -890,6 +1011,20 @@ Blocker: client has not shared access to the knowledge base.`
       });
 
       $("#extract").addEventListener("click", processTranscript);
+      $("#saveWebhook").addEventListener("click", () => {
+        webhookUrl = $("#webhookUrl").value.trim();
+        if (webhookUrl) {
+          localStorage.setItem("actionFlowWebhookUrl", webhookUrl);
+        } else {
+          localStorage.removeItem("actionFlowWebhookUrl");
+        }
+        updateEndpointStatus();
+      });
+      $("#useLocal").addEventListener("click", () => {
+        webhookUrl = "";
+        localStorage.removeItem("actionFlowWebhookUrl");
+        updateEndpointStatus();
+      });
       $("#exportCsv").addEventListener("click", exportTasksCsv);
       $("#clear").addEventListener("click", () => {
         $("#transcript").value = "";
@@ -903,6 +1038,7 @@ Blocker: client has not shared access to the knowledge base.`
         renderHistory();
       });
 
+      updateEndpointStatus();
       renderHistory();
     </script>
   </body>

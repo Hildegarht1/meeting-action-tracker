@@ -1,0 +1,74 @@
+{
+  "name": "ActionFlow Meeting Tracker - Make Scenario Blueprint",
+  "description": "Blueprint for a Make scenario that receives meeting notes, extracts structured follow-up work, logs results, and returns JSON to the hosted dashboard.",
+  "input": {
+    "meeting_title": "string",
+    "transcript": "string",
+    "source": "actionflow-dashboard"
+  },
+  "modules": [
+    {
+      "step": 1,
+      "type": "webhook",
+      "name": "Custom Webhook",
+      "purpose": "Receive meeting title, transcript, and source metadata from the ActionFlow dashboard."
+    },
+    {
+      "step": 2,
+      "type": "ai_or_code",
+      "name": "Structured Extraction",
+      "purpose": "Extract actions, owners, due dates, decisions, risks, blockers, priority, and status."
+    },
+    {
+      "step": 3,
+      "type": "ai",
+      "name": "Follow-up Summary",
+      "purpose": "Generate a concise operational summary for the meeting."
+    },
+    {
+      "step": 4,
+      "type": "google_sheets",
+      "name": "Meeting History Log",
+      "purpose": "Store counts, JSON output, summary, and transcript for tracking."
+    },
+    {
+      "step": 5,
+      "type": "task_tool_optional",
+      "name": "Task Creation",
+      "purpose": "Create tasks in a connected work management app when action items are found."
+    },
+    {
+      "step": 6,
+      "type": "webhook_response",
+      "name": "Return Dashboard JSON",
+      "purpose": "Send the structured result back to the hosted dashboard."
+    }
+  ],
+  "expected_response": {
+    "actions": [
+      {
+        "task": "string",
+        "owner": "string",
+        "due": "string",
+        "priority": "low | medium | high",
+        "status": "open"
+      }
+    ],
+    "decisions": ["string"],
+    "risks": [
+      {
+        "text": "string",
+        "severity": "low | medium | high"
+      }
+    ],
+    "blockers": [
+      {
+        "text": "string",
+        "owner": "string",
+        "severity": "low | medium | high"
+      }
+    ],
+    "followUpSummary": "string",
+    "summary": "string"
+  }
+}

@@ -1,6 +1,6 @@
 # ActionFlow Meeting Tracker
 
-ActionFlow is a hosted automation demo that converts messy meeting notes into accountable follow-up work.
+ActionFlow is a hosted automation tool that converts messy meeting notes into accountable follow-up work.
 
 It extracts:
 
@@ -26,26 +26,53 @@ Teams often leave meetings with vague notes and no clear ownership. ActionFlow t
 - request history
 - structured JSON
 - CSV task export
-- visible n8n-style automation workflow
+- optional Make webhook integration
+- visible automation workflow
 
 ## Automation Architecture
 
 ```text
 React/static dashboard
--> n8n webhook
--> Code node extracts structured meeting data
--> AI node writes follow-up summary
+-> Make custom webhook
+-> Code or AI step extracts structured meeting data
+-> AI step writes follow-up summary
 -> Google Sheets stores meeting history
 -> task tool creates follow-up tasks
 -> reminder loop tracks deadlines
+-> webhook response updates the dashboard
 ```
 
 ## Current Status
 
-The dashboard works as a self-contained demo. The workflow design documents how the same logic can connect to n8n, Google Sheets, task tools, and reminder automation.
+The dashboard works as a self-contained app and can also send meeting notes to a Make custom webhook when a scenario URL is configured.
 
-The n8n workflow design is documented in:
+The Make scenario design is documented in:
 
 ```text
-workflows/n8n-workflow-design.md
+workflows/make-scenario-design.md
+```
+
+## Webhook Payload
+
+When a Make webhook URL is saved in the dashboard, ActionFlow sends:
+
+```json
+{
+  "meeting_title": "Product launch meeting notes",
+  "transcript": "Sarah will finalize the landing page copy by Friday...",
+  "source": "actionflow-dashboard"
+}
+```
+
+The expected response is:
+
+```json
+{
+  "actions": [],
+  "decisions": [],
+  "risks": [],
+  "blockers": [],
+  "followUpSummary": "Summary text",
+  "summary": "Short extraction summary"
+}
 ```

@@ -32,4 +32,4 @@ Use the GitHub repository link for source code and technical artifacts.
 
 ## What Not To Include
 
-Do not publish API keys, OAuth credentials, private n8n webhook URLs, or private Google Sheets links.
+Do not publish API keys, OAuth credentials, private webhook URLs, or private Google Sheets links.
