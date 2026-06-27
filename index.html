@@ -801,10 +801,15 @@ Blocker: client has not shared access to the knowledge base.`
         const local = extract(text);
         data = unwrapWebhookData(data);
 
-        const actions = asArray(data.actions) || local.actions;
-        const decisions = asArray(data.decisions) || local.decisions;
-        const risks = asArray(data.risks) || local.risks;
-        const blockers = asArray(data.blockers) || local.blockers;
+        const makeActions = asArray(data.actions);
+        const makeDecisions = asArray(data.decisions);
+        const makeRisks = asArray(data.risks);
+        const makeBlockers = asArray(data.blockers);
+        const actions = withLocalFallback(makeActions, local.actions);
+        const decisions = withLocalFallback(makeDecisions, local.decisions);
+        const risks = withLocalFallback(makeRisks, local.risks);
+        const blockers = withLocalFallback(makeBlockers, local.blockers);
+        const usedTranscriptFallback = !hasItems(makeActions) || !hasItems(makeDecisions) || !hasItems(makeRisks) || !hasItems(makeBlockers);
         const followUpSummary = data.followUpSummary || data.follow_up_summary || data.followup_summary || local.followUpSummary;
 
         return {
@@ -826,7 +831,8 @@ Blocker: client has not shared access to the knowledge base.`
             severity: item.severity || item.priority || "medium"
           })),
           followUpSummary,
-          summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`
+          summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`,
+          extractionSource: usedTranscriptFallback ? "Make summary with transcript-verified arrays" : "Make structured response"
         };
       }
 
@@ -868,6 +874,14 @@ Blocker: client has not shared access to the knowledge base.`
           return Array.isArray(parsed) ? parsed : null;
         }
         return null;
+      }
+
+      function withLocalFallback(makeValue, localValue) {
+        return Array.isArray(makeValue) && makeValue.length ? makeValue : localValue;
+      }
+
+      function hasItems(value) {
+        return Array.isArray(value) && value.length > 0;
       }
 
       function parseWebhookResponse(raw) {
