@@ -853,6 +853,8 @@ Blocker: client has not shared access to the knowledge base.`
       function ownerFrom(line) {
         const patterns = [
           /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+)\s+(?:will|owns|needs|needs to|has to|should|is responsible)/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+),?\s+(?:kindly|please)\s+(?:look|check|confirm|review|send|prepare|organise|organize)/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+)\s+is\s+(?:up to|responsible for|assigned to)/i,
           /(?:owner|assigned to):?\s*([A-Z][a-z]+)/i,
           /([A-Z][a-z]+)\s+owns/i
         ];
@@ -864,9 +866,9 @@ Blocker: client has not shared access to the knowledge base.`
       }
 
       function dueFrom(line) {
-        const match = line.match(/\b(by|before|due|on)\s+(the end of the week|end of the week|[A-Za-z]+day|tomorrow|next week|next [A-Za-z]+|[A-Z][a-z]+\s+\d{1,2})/i);
+        const match = line.match(/\b(by|before|due|on)\s+(the end of the week|end of the week|[A-Za-z]+day|tomorrow|next week|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday|[A-Z][a-z]+\s+\d{1,2})/i);
         if (match) return match[2];
-        const looseMatch = line.match(/\b(tomorrow|next week|next [A-Za-z]+|the end of the week|end of the week)\b/i);
+        const looseMatch = line.match(/\b(tomorrow|next week|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday|the end of the week|end of the week)\b/i);
         return looseMatch ? looseMatch[1] : "No date";
       }
 
@@ -912,6 +914,10 @@ Blocker: client has not shared access to the knowledge base.`
         return `This meeting produced ${actionText} ${ownerText}. ${decisionText}, and ${riskText}.`;
       }
 
+      function hasNoTranscriptMessage(value) {
+        return typeof value === "string" && /no transcript provided|unable to extract/i.test(value);
+      }
+
       function extract(text) {
         const sentences = splitSentences(text);
         const actions = [];
@@ -933,7 +939,7 @@ Blocker: client has not shared access to the knowledge base.`
             blockers.push({ text: cleanTask(line), owner: ownerFrom(line), severity: priorityFrom(line) });
             continue;
           }
-          if (/\b(will|owns|needs|needs to|has to|should|responsible|prepare|send|finalize|update|confirm|share|complete|organise|organize|submit|launch)\b/i.test(line)) {
+          if (/\b(will|owns|needs|needs to|has to|should|responsible|prepare|send|finalize|finalise|update|confirm|share|complete|organise|organize|submit|launch|look into|explore|brainstorm)\b/i.test(line)) {
             actions.push({
               task: cleanTask(line),
               owner: ownerFrom(line),
@@ -977,8 +983,12 @@ Blocker: client has not shared access to the knowledge base.`
         const risks = withLocalFallback(makeRisks, local.risks);
         const blockers = withLocalFallback(makeBlockers, local.blockers);
         const usedTranscriptFallback = !hasItems(makeActions) || !hasItems(makeDecisions) || !hasItems(makeRisks) || !hasItems(makeBlockers);
-        const followUpSummary = data.followUpSummary || data.follow_up_summary || data.followup_summary || local.followUpSummary;
-        const meetingSummary = data.meetingSummary || data.meeting_summary || buildMeetingSummary(actions, decisions, risks, blockers);
+        const makeFollowUp = data.followUpSummary || data.follow_up_summary || data.followup_summary;
+        const makeMeetingSummary = data.meetingSummary || data.meeting_summary;
+        const makeSummary = data.summary;
+        const followUpSummary = hasNoTranscriptMessage(makeFollowUp) ? local.followUpSummary : makeFollowUp || local.followUpSummary;
+        const meetingSummary = hasNoTranscriptMessage(makeMeetingSummary) ? buildMeetingSummary(actions, decisions, risks, blockers) : makeMeetingSummary || buildMeetingSummary(actions, decisions, risks, blockers);
+        const summary = hasNoTranscriptMessage(makeSummary) ? `Processed through Make and verified ${actions.length} action item${actions.length === 1 ? "" : "s"} from the transcript.` : makeSummary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`;
 
         return {
           actions: actions.map(action => ({
@@ -1000,7 +1010,7 @@ Blocker: client has not shared access to the knowledge base.`
           })),
           meetingSummary,
           followUpSummary,
-          summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`,
+          summary,
           extractionSource: usedTranscriptFallback ? "Make summary with transcript-verified arrays" : "Make structured response"
         };
       }
