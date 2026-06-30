@@ -852,17 +852,22 @@ Blocker: client has not shared access to the knowledge base.`
 
       function ownerFrom(line) {
         const patterns = [
-          /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+)\s+(?:will|owns|needs|needs to|has to|should|is responsible)/i,
-          /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+),?\s+(?:kindly|please)\s+(?:look|check|confirm|review|send|prepare|organise|organize)/i,
-          /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+)\s+is\s+(?:up to|responsible for|assigned to)/i,
-          /(?:owner|assigned to):?\s*([A-Z][a-z]+)/i,
-          /([A-Z][a-z]+)\s+owns/i
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+)\s+(?:also\s+)?(?:will|owns|needs|needs to|has to|should|is responsible)/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+),?\s+(?:kindly|please)\s+(?:look|check|confirm|review|send|prepare|organise|organize)/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+)\s+is\s+(?:up to|responsible for|assigned to)/i,
+          /(?:owner|assigned to):?\s*([A-Za-z]+)/i,
+          /([A-Za-z]+)\s+owns/i
         ];
         for (const pattern of patterns) {
           const match = line.match(pattern);
-          if (match) return match[1];
+          if (match) return normalizeOwner(match[1]);
         }
         return "Unassigned";
+      }
+
+      function normalizeOwner(name) {
+        if (!name) return "Unassigned";
+        return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
       }
 
       function dueFrom(line) {
@@ -915,7 +920,7 @@ Blocker: client has not shared access to the knowledge base.`
       }
 
       function hasNoTranscriptMessage(value) {
-        return typeof value === "string" && /no transcript provided|unable to extract/i.test(value);
+        return typeof value === "string" && /no transcript provided|no meeting content provided|unable to extract/i.test(value);
       }
 
       function extract(text) {
