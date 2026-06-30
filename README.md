@@ -44,6 +44,12 @@ Browser localStorage
 6. Export action items as CSV if needed.
 7. In live mode, confirm the Make run and Google Sheets log row.
 
+Sample spoken input:
+
+```text
+Sarah will send the onboarding draft by Friday. We need to decide who gets priority support. The client is waiting, so this is high risk.
+```
+
 ## Automation Architecture
 
 ```text
@@ -56,6 +62,17 @@ ActionFlow dashboard
 ```
 
 The dashboard also has a local extraction mode, so the interface remains usable even when the Make webhook is not configured.
+
+## How It Works In The App
+
+```text
+Capture notes
+-> Process with Make
+-> Log the run
+-> Review output
+```
+
+The interface shows the active route, input type, log route, and output status during each extraction.
 
 ## Google Sheets Log
 

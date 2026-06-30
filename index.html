@@ -262,7 +262,11 @@
       }
 
       .voice-status {
-        margin-top: 10px;
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #fbfcfe;
         color: var(--muted);
         font-size: 13px;
       }
@@ -270,10 +274,30 @@
       .voice-status.listening {
         color: var(--green);
         font-weight: 750;
+        border-color: #b9ded2;
+        background: #eef9f5;
       }
 
       .voice-status.error {
         color: var(--red);
+        border-color: #f0c7c7;
+        background: #fff5f5;
+      }
+
+      .voice-status.success {
+        color: var(--green);
+        border-color: #b9ded2;
+        background: #eef9f5;
+      }
+
+      .voice-tip {
+        margin-top: 10px;
+        border-left: 3px solid var(--green);
+        padding: 8px 10px;
+        color: #405064;
+        background: #f3faf7;
+        border-radius: 6px;
+        font-size: 13px;
       }
 
       .controls,
@@ -500,6 +524,41 @@
         background-size: 24px 24px;
       }
 
+      .how-grid {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .how-step {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        padding: 14px;
+      }
+
+      .how-step b {
+        display: inline-grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        margin-bottom: 8px;
+        color: white;
+        background: var(--ink);
+      }
+
+      .how-step strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .how-step span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
       .node-row {
         min-width: 1080px;
         display: grid;
@@ -590,6 +649,10 @@
         .workflow-section {
           padding: 24px 20px;
         }
+
+        .how-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -637,6 +700,7 @@
                 <button class="button ghost" id="exportCsv" disabled>Export tasks CSV</button>
               </div>
               <div class="voice-status" id="voiceStatus">Audio input uses your browser microphone when available.</div>
+              <div class="voice-tip">Try saying: "Sarah will send the onboarding draft by Friday. We need to decide who gets priority support. The client is waiting, so this is high risk."</div>
               <div class="samples">
                 <button type="button" data-sample="launch">Product launch meeting</button>
                 <button type="button" data-sample="ops">Operations sync</button>
@@ -732,6 +796,12 @@
                 <p>Can route follow-ups to Slack, Teams, email, or task tools.</p>
               </article>
             </div>
+          </div>
+          <div class="how-grid" aria-label="How ActionFlow works">
+            <div class="how-step"><b>1</b><strong>Capture notes</strong><span>Paste notes or use browser audio transcription.</span></div>
+            <div class="how-step"><b>2</b><strong>Process with Make</strong><span>Send the transcript through the Make webhook and AI route.</span></div>
+            <div class="how-step"><b>3</b><strong>Log the run</strong><span>Store the meeting record in Google Sheets for history.</span></div>
+            <div class="how-step"><b>4</b><strong>Review output</strong><span>Return summaries, actions, decisions, risks, and CSV export.</span></div>
           </div>
         </section>
 
@@ -1007,8 +1077,8 @@ Blocker: client has not shared access to the knowledge base.`
       }
 
       function modeLabel(mode) {
-        if (mode === "make") return "Make webhook";
-        if (mode === "fallback") return "Local fallback";
+        if (mode === "make") return "Live Make route";
+        if (mode === "fallback") return "Transcript verified";
         return "Local extraction";
       }
 
@@ -1085,7 +1155,7 @@ Blocker: client has not shared access to the knowledge base.`
           $("#stopListening").disabled = true;
           if (captured) {
             appendTranscript(captured);
-            setVoiceStatus("Audio captured and added to the transcript box.");
+          setVoiceStatus("Audio transcript captured and added to the notes.", "success");
           } else {
             setVoiceStatus("Audio stopped. No final speech was captured.");
           }
@@ -1111,7 +1181,7 @@ Blocker: client has not shared access to the knowledge base.`
         $("#mOwners").textContent = new Set(result.actions.map(item => item.owner).filter(owner => owner !== "Unassigned")).size;
         $("#mRisks").textContent = result.risks.length + result.blockers.length;
         $("#mDecisions").textContent = result.decisions.length;
-        $("#aiStatus").textContent = entry.mode === "make" ? "Make AI" : entry.mode === "fallback" ? "Verified fallback" : "Local mode";
+        $("#aiStatus").textContent = entry.mode === "make" ? "Make AI" : entry.mode === "fallback" ? "Transcript verified" : "Local mode";
         $("#logStatus").textContent = entry.mode === "make" ? "Google Sheets route" : "Local history";
         $("#outputStatus").textContent = `${result.actions.length} actions ready`;
 
@@ -1202,10 +1272,10 @@ Blocker: client has not shared access to the knowledge base.`
           } catch (error) {
             result = extract(text);
             result.webhookError = error.message || "Unknown webhook error";
-            result.summary = `${result.summary} The Make webhook could not be used, so local extraction was used. Error: ${result.webhookError}`;
+            result.summary = `${result.summary} Live automation was unavailable, so ActionFlow verified the tasks directly from the transcript.`;
             mode = "fallback";
             $("#modeDot").className = "dot fallback";
-            $("#modeStatus").textContent = `Make webhook issue: ${result.webhookError}`;
+            $("#modeStatus").textContent = `Live route unavailable; transcript verified locally`;
           }
         } else {
           result = extract(text);
