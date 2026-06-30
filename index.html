@@ -822,6 +822,26 @@ Blocker: client has not shared access to the knowledge base.`
         return `Voice meeting notes - ${new Date().toLocaleDateString([], { month: "short", day: "numeric" })}`;
       }
 
+      function buildMeetingSummary(actions, decisions, risks, blockers) {
+        const owners = [...new Set(actions.map(item => item.owner).filter(owner => owner !== "Unassigned"))];
+        const actionText = actions.length
+          ? `${actions.length} action item${actions.length === 1 ? "" : "s"}`
+          : "No action items were detected";
+        const ownerText = owners.length
+          ? `with ownership assigned to ${owners.join(", ")}`
+          : "with ownership still to be assigned";
+        const decisionText = decisions.length
+          ? `${decisions.length} decision${decisions.length === 1 ? "" : "s"} ${decisions.length === 1 ? "was" : "were"} recorded`
+          : "no decisions were recorded";
+        const riskCount = risks.length + blockers.length;
+        const riskText = riskCount
+          ? `${riskCount} risk or blocker item${riskCount === 1 ? " needs" : "s need"} follow-up`
+          : "no risks or blockers were flagged";
+
+        if (!actions.length) return `This meeting produced ${actionText}. ${decisionText}, and ${riskText}.`;
+        return `This meeting produced ${actionText} ${ownerText}. ${decisionText}, and ${riskText}.`;
+      }
+
       function extract(text) {
         const sentences = splitSentences(text);
         const actions = [];
@@ -868,6 +888,7 @@ Blocker: client has not shared access to the knowledge base.`
           decisions,
           risks,
           blockers,
+          meetingSummary: buildMeetingSummary(actions, decisions, risks, blockers),
           followUpSummary,
           summary: `Extracted ${actions.length} action items, ${decisions.length} decisions, ${risks.length} risks, and ${blockers.length} blockers from the meeting notes.`
         };
@@ -887,6 +908,7 @@ Blocker: client has not shared access to the knowledge base.`
         const blockers = withLocalFallback(makeBlockers, local.blockers);
         const usedTranscriptFallback = !hasItems(makeActions) || !hasItems(makeDecisions) || !hasItems(makeRisks) || !hasItems(makeBlockers);
         const followUpSummary = data.followUpSummary || data.follow_up_summary || data.followup_summary || local.followUpSummary;
+        const meetingSummary = data.meetingSummary || data.meeting_summary || buildMeetingSummary(actions, decisions, risks, blockers);
 
         return {
           actions: actions.map(action => ({
@@ -906,6 +928,7 @@ Blocker: client has not shared access to the knowledge base.`
             owner: item.owner || "Unassigned",
             severity: item.severity || item.priority || "medium"
           })),
+          meetingSummary,
           followUpSummary,
           summary: data.summary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`,
           extractionSource: usedTranscriptFallback ? "Make summary with transcript-verified arrays" : "Make structured response"
@@ -1104,7 +1127,11 @@ Blocker: client has not shared access to the knowledge base.`
           <h3>${entry.title}</h3>
           <p class="summary">${result.summary}</p>
           <div class="summary-box">
-            <strong>Manager-ready follow-up</strong>
+            <strong>Meeting Summary</strong>
+            ${result.meetingSummary}
+          </div>
+          <div class="summary-box">
+            <strong>Key Follow-Up</strong>
             ${result.followUpSummary}
           </div>
           <div class="tabs">${tabs.map(([id, label]) => `<button class="${activeTab === id ? "active" : ""}" data-tab="${id}">${label}</button>`).join("")}</div>

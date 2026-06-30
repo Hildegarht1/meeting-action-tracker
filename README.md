@@ -10,6 +10,7 @@ It extracts:
 - decisions
 - risks and blockers
 - structured JSON for automation tools
+- meeting summaries
 - manager-ready follow-up summaries
 - CSV exports for tasks
 
@@ -74,6 +75,7 @@ The expected response is:
   "decisions": [],
   "risks": [],
   "blockers": [],
+  "meetingSummary": "Human-readable meeting summary",
   "followUpSummary": "Summary text",
   "summary": "Short extraction summary"
 }
