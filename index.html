@@ -329,7 +329,7 @@
 
       .input-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 180px;
+        grid-template-columns: minmax(0, 1fr);
         gap: 10px;
         margin-bottom: 10px;
       }
@@ -733,10 +733,6 @@
               <h3>Meeting transcript</h3>
               <div class="input-row">
                 <input id="meetingTitle" type="text" placeholder="Meeting title, e.g. Weekly product operations meeting" />
-                <select id="audioLanguage" aria-label="Audio language">
-                  <option value="en-US">English audio</option>
-                  <option value="de-DE">German audio</option>
-                </select>
               </div>
               <textarea id="transcript" placeholder="Paste notes like: Sarah will send the customer onboarding draft by Friday. Ahmed owns the API test report. Decision: launch the beta next week. Risk: legal approval may delay the announcement."></textarea>
               <div class="controls">
@@ -883,13 +879,33 @@ Blocker: client has not shared access to the knowledge base.`
 
       let history = JSON.parse(localStorage.getItem("actionFlowHistory") || "[]");
       let webhookUrl = localStorage.getItem("actionFlowWebhookUrl") || "";
-      let audioLanguage = localStorage.getItem("actionFlowAudioLanguage") || "en-US";
       let activeTab = "actions";
       let activeId = null;
       let recognition = null;
       let listening = false;
 
       const $ = selector => document.querySelector(selector);
+
+      function getBrowserSpeechLanguage() {
+        const languages = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
+        const german = languages.find(language => language.toLowerCase().startsWith("de"));
+        return german || languages[0] || "en-US";
+      }
+
+      function getSpeechLanguageForCurrentNotes() {
+        const language = detectTranscriptLanguage($("#transcript").value || "");
+        if (language.code === "de") return "de-DE";
+        return getBrowserSpeechLanguage();
+      }
+
+      function detectTranscriptLanguage(text) {
+        const normalized = text.toLowerCase();
+        const germanMatches = (normalized.match(/\b(und|oder|nicht|bitte|kunde|kunden|termin|woche|montag|dienstag|mittwoch|donnerstag|freitag|entscheidung|risiko|aufgabe|besprechung|zusammenfassung|verantwortlich)\b|[\u00e4\u00f6\u00fc\u00df]/g) || []).length;
+        const englishMatches = (normalized.match(/\b(and|or|not|please|client|customer|meeting|week|monday|tuesday|wednesday|thursday|friday|decision|risk|task|owner|follow|summary|responsible)\b/g) || []).length;
+        if (germanMatches >= 2 && englishMatches >= 2) return { code: "mixed", label: "Mixed English/German" };
+        if (germanMatches > englishMatches) return { code: "de", label: "German" };
+        return { code: "en", label: "English" };
+      }
 
       function splitSentences(text) {
         return text
@@ -1158,7 +1174,8 @@ Blocker: client has not shared access to the knowledge base.`
         const transcript = $("#transcript");
         const existing = transcript.value.trim();
         transcript.value = existing ? `${existing}\n${text}` : text;
-        $("#inputStatus").textContent = "Audio transcript";
+        const language = detectTranscriptLanguage(transcript.value);
+        $("#inputStatus").textContent = `${language.label} audio`;
       }
 
       function setVoiceStatus(message, state = "") {
@@ -1179,7 +1196,7 @@ Blocker: client has not shared access to the knowledge base.`
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = audioLanguage;
+        recognition.lang = getBrowserSpeechLanguage();
 
         let finalText = "";
         let lastInterimText = "";
@@ -1190,7 +1207,7 @@ Blocker: client has not shared access to the knowledge base.`
           lastInterimText = "";
           $("#startListening").disabled = true;
           $("#stopListening").disabled = false;
-          setVoiceStatus("Listening... speak naturally and pause briefly before clicking Stop.", "listening");
+          setVoiceStatus("Listening with automatic language handling. Speak naturally and pause briefly before clicking Stop.", "listening");
         };
 
         recognition.onresult = event => {
@@ -1221,7 +1238,8 @@ Blocker: client has not shared access to the knowledge base.`
           $("#stopListening").disabled = true;
           if (captured) {
             appendTranscript(captured);
-          setVoiceStatus("Audio transcript captured and added to the notes.", "success");
+            const language = detectTranscriptLanguage(captured);
+            setVoiceStatus(`Audio transcript captured. Detected: ${language.label}.`, "success");
           } else {
             setVoiceStatus("Audio stopped. No final speech was captured.");
           }
@@ -1231,7 +1249,7 @@ Blocker: client has not shared access to the knowledge base.`
       function startListening() {
         if (!recognition || listening) return;
         try {
-          recognition.lang = $("#audioLanguage").value;
+          recognition.lang = getSpeechLanguageForCurrentNotes();
           recognition.start();
         } catch (error) {
           setVoiceStatus(`Could not start audio transcription: ${error.message}`, "error");
@@ -1316,7 +1334,8 @@ Blocker: client has not shared access to the knowledge base.`
         const text = $("#transcript").value.trim();
         if (!text) return;
         const title = $("#meetingTitle").value.trim() || titleFromTranscript(text);
-        $("#inputStatus").textContent = $("#meetingTitle").value.trim() ? "Titled transcript" : "Untitled transcript";
+        const language = detectTranscriptLanguage(text);
+        $("#inputStatus").textContent = `${language.label} transcript`;
         let result;
         let mode = "local";
 
@@ -1325,6 +1344,7 @@ Blocker: client has not shared access to the knowledge base.`
             const payload = new URLSearchParams({
               meeting_title: title,
               transcript: text,
+              language: language.label,
               source: "actionflow-dashboard"
             });
 
@@ -1423,13 +1443,6 @@ Blocker: client has not shared access to the knowledge base.`
       $("#extract").addEventListener("click", processTranscript);
       $("#startListening").addEventListener("click", startListening);
       $("#stopListening").addEventListener("click", stopListening);
-      $("#audioLanguage").value = audioLanguage;
-      $("#audioLanguage").addEventListener("change", () => {
-        audioLanguage = $("#audioLanguage").value;
-        localStorage.setItem("actionFlowAudioLanguage", audioLanguage);
-        if (recognition) recognition.lang = audioLanguage;
-        setVoiceStatus(`${audioLanguage === "de-DE" ? "German" : "English"} audio transcription selected.`);
-      });
       $("#saveWebhook").addEventListener("click", () => {
         webhookUrl = $("#webhookUrl").value.trim();
         if (webhookUrl) {
