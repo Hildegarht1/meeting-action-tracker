@@ -20,6 +20,7 @@ Teams often leave meetings with vague notes and no clear ownership. ActionFlow t
 ## Features
 
 - transcript input
+- meeting title field
 - browser microphone transcription
 - sample meeting notes
 - extracted action board
@@ -28,6 +29,8 @@ Teams often leave meetings with vague notes and no clear ownership. ActionFlow t
 - structured JSON
 - CSV task export
 - optional Make webhook integration
+- Make AI summary route
+- Google Sheets meeting log
 - visible automation workflow
 
 ## Automation Architecture
@@ -35,17 +38,15 @@ Teams often leave meetings with vague notes and no clear ownership. ActionFlow t
 ```text
 React/static dashboard
 -> Make custom webhook
--> Code or AI step extracts structured meeting data
--> AI step writes follow-up summary
+-> Make AI agent writes follow-up summary
+-> Dashboard verifies actions, owners, deadlines, decisions, and risks
 -> Google Sheets stores meeting history
--> task tool creates follow-up tasks
--> reminder loop tracks deadlines
 -> webhook response updates the dashboard
 ```
 
 ## Current Status
 
-The dashboard works as a self-contained app and can also send meeting notes to a Make custom webhook when a scenario URL is configured.
+The dashboard works as a self-contained app and can also send meeting notes to a Make custom webhook when a scenario URL is configured. The connected workflow can log processed meetings to Google Sheets before returning the result to the dashboard.
 
 The Make scenario design is documented in:
 

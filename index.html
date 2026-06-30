@@ -219,6 +219,15 @@
         background: white;
       }
 
+      input[type="text"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        color: var(--ink);
+        background: white;
+      }
+
       textarea {
         min-height: 220px;
         resize: vertical;
@@ -425,6 +434,29 @@
         gap: 10px;
       }
 
+      .status-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fbfcfe;
+      }
+
+      .status-row span {
+        color: var(--muted);
+      }
+
+      .status-row strong {
+        text-align: right;
+      }
+
       .metric {
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -595,6 +627,7 @@
           <div>
             <div class="panel">
               <h3>Meeting transcript</h3>
+              <input id="meetingTitle" type="text" placeholder="Meeting title, e.g. Weekly product operations meeting" />
               <textarea id="transcript" placeholder="Paste notes like: Sarah will send the customer onboarding draft by Friday. Ahmed owns the API test report. Decision: launch the beta next week. Risk: legal approval may delay the announcement."></textarea>
               <div class="controls">
                 <button class="button" id="startListening" type="button">Start listening</button>
@@ -628,6 +661,15 @@
               </div>
             </div>
             <div class="card">
+              <h3>Workflow status</h3>
+              <div class="status-grid">
+                <div class="status-row"><span>Input</span><strong id="inputStatus">Text or audio</strong></div>
+                <div class="status-row"><span>AI route</span><strong id="aiStatus">Local mode</strong></div>
+                <div class="status-row"><span>Log route</span><strong id="logStatus">Not sent yet</strong></div>
+                <div class="status-row"><span>Output</span><strong id="outputStatus">Ready</strong></div>
+              </div>
+            </div>
+            <div class="card">
               <h3>Automation endpoint</h3>
               <p class="summary">Connect a Make custom webhook to process notes through a live scenario. Leave it empty to use local extraction.</p>
               <div class="endpoint-form">
@@ -653,8 +695,9 @@
         <section class="workflow-section" id="workflow">
           <h3>Visible automation workflow</h3>
           <p>
-            The hosted app includes local extraction for demos. The automation-ready workflow below shows how
-            the same logic connects to Make, AI wording, task creation, reminders, and Google Sheets history.
+            The hosted app can run locally or send transcript data into a Make scenario. The live workflow
+            uses Make AI for summary generation, logs meeting history in Google Sheets, and returns results
+            back to the dashboard.
           </p>
           <div class="workflow-canvas">
             <div class="node-row">
@@ -665,8 +708,8 @@
               </article>
               <article class="node">
                 <span class="node-type code">Code</span>
-                <h4>Structured extraction</h4>
-                <p>Finds actions, owners, deadlines, decisions, blockers, and risks.</p>
+                <h4>Transcript verification</h4>
+                <p>Finds actions, owners, deadlines, decisions, blockers, and risks from text or speech.</p>
               </article>
               <article class="node">
                 <span class="node-type ai">AI</span>
@@ -675,18 +718,18 @@
               </article>
               <article class="node">
                 <span class="node-type store">Sheets</span>
-                <h4>History log</h4>
+                <h4>Google Sheets log</h4>
                 <p>Stores transcript preview, tasks, decisions, risks, and status.</p>
               </article>
               <article class="node">
                 <span class="node-type">Tasks</span>
-                <h4>Task creation</h4>
-                <p>Creates follow-up tasks in Asana, Trello, Planner, or Notion.</p>
+                <h4>Dashboard response</h4>
+                <p>Returns structured output to the hosted app for review and CSV export.</p>
               </article>
               <article class="node">
                 <span class="node-type">Reminder</span>
-                <h4>Reminder loop</h4>
-                <p>Sends reminders for upcoming deadlines and unresolved blockers.</p>
+                <h4>Extension path</h4>
+                <p>Can route follow-ups to Slack, Teams, email, or task tools.</p>
               </article>
             </div>
           </div>
@@ -952,12 +995,14 @@ Blocker: client has not shared access to the knowledge base.`
         $("#webhookUrl").value = webhookUrl;
         dot.className = `dot${webhookUrl ? " live" : ""}`;
         status.textContent = webhookUrl ? "Make webhook connected" : "Local extraction mode";
+        $("#aiStatus").textContent = webhookUrl ? "Make connected" : "Local mode";
       }
 
       function appendTranscript(text) {
         const transcript = $("#transcript");
         const existing = transcript.value.trim();
         transcript.value = existing ? `${existing}\n${text}` : text;
+        $("#inputStatus").textContent = "Audio transcript";
       }
 
       function setVoiceStatus(message, state = "") {
@@ -1043,6 +1088,9 @@ Blocker: client has not shared access to the knowledge base.`
         $("#mOwners").textContent = new Set(result.actions.map(item => item.owner).filter(owner => owner !== "Unassigned")).size;
         $("#mRisks").textContent = result.risks.length + result.blockers.length;
         $("#mDecisions").textContent = result.decisions.length;
+        $("#aiStatus").textContent = entry.mode === "make" ? "Make AI" : entry.mode === "fallback" ? "Verified fallback" : "Local mode";
+        $("#logStatus").textContent = entry.mode === "make" ? "Google Sheets route" : "Local history";
+        $("#outputStatus").textContent = `${result.actions.length} actions ready`;
 
         const tabs = [
           ["actions", `Actions (${result.actions.length})`],
@@ -1103,7 +1151,8 @@ Blocker: client has not shared access to the knowledge base.`
       async function processTranscript() {
         const text = $("#transcript").value.trim();
         if (!text) return;
-        const title = titleFromTranscript(text);
+        const title = $("#meetingTitle").value.trim() || titleFromTranscript(text);
+        $("#inputStatus").textContent = $("#meetingTitle").value.trim() ? "Titled transcript" : "Untitled transcript";
         let result;
         let mode = "local";
 
@@ -1227,12 +1276,17 @@ Blocker: client has not shared access to the knowledge base.`
       $("#exportCsv").addEventListener("click", exportTasksCsv);
       $("#clear").addEventListener("click", () => {
         stopListening();
+        $("#meetingTitle").value = "";
         $("#transcript").value = "";
         activeId = null;
         $("#mTasks").textContent = "0";
         $("#mOwners").textContent = "0";
         $("#mRisks").textContent = "0";
         $("#mDecisions").textContent = "0";
+        $("#inputStatus").textContent = "Text or audio";
+        $("#aiStatus").textContent = webhookUrl ? "Make connected" : "Local mode";
+        $("#logStatus").textContent = "Not sent yet";
+        $("#outputStatus").textContent = "Ready";
         $("#exportCsv").disabled = true;
         setVoiceStatus("Audio input uses your browser microphone when available.");
         $("#result").innerHTML = `<span class="status">Ready</span><h3>Extraction result</h3><p class="summary">Paste a transcript to generate a task board, decision log, risk list, and follow-up summary.</p>`;
