@@ -252,6 +252,21 @@
         background: var(--red);
       }
 
+      .voice-status {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .voice-status.listening {
+        color: var(--green);
+        font-weight: 750;
+      }
+
+      .voice-status.error {
+        color: var(--red);
+      }
+
       .controls,
       .samples {
         margin-top: 12px;
@@ -582,10 +597,13 @@
               <h3>Meeting transcript</h3>
               <textarea id="transcript" placeholder="Paste notes like: Sarah will send the customer onboarding draft by Friday. Ahmed owns the API test report. Decision: launch the beta next week. Risk: legal approval may delay the announcement."></textarea>
               <div class="controls">
+                <button class="button" id="startListening" type="button">Start listening</button>
+                <button class="button ghost" id="stopListening" type="button" disabled>Stop</button>
                 <button class="button primary" id="extract">Extract actions</button>
                 <button class="button ghost" id="clear">Clear</button>
                 <button class="button ghost" id="exportCsv" disabled>Export tasks CSV</button>
               </div>
+              <div class="voice-status" id="voiceStatus">Audio input uses your browser microphone when available.</div>
               <div class="samples">
                 <button type="button" data-sample="launch">Product launch meeting</button>
                 <button type="button" data-sample="ops">Operations sync</button>
@@ -707,6 +725,8 @@ Blocker: client has not shared access to the knowledge base.`
       let webhookUrl = localStorage.getItem("actionFlowWebhookUrl") || "";
       let activeTab = "actions";
       let activeId = null;
+      let recognition = null;
+      let listening = false;
 
       const $ = selector => document.querySelector(selector);
 
@@ -921,6 +941,89 @@ Blocker: client has not shared access to the knowledge base.`
         status.textContent = webhookUrl ? "Make webhook connected" : "Local extraction mode";
       }
 
+      function appendTranscript(text) {
+        const transcript = $("#transcript");
+        const existing = transcript.value.trim();
+        transcript.value = existing ? `${existing}\n${text}` : text;
+      }
+
+      function setVoiceStatus(message, state = "") {
+        const status = $("#voiceStatus");
+        status.textContent = message;
+        status.className = `voice-status ${state}`.trim();
+      }
+
+      function setupSpeechRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          $("#startListening").disabled = true;
+          $("#stopListening").disabled = true;
+          setVoiceStatus("Audio transcription is not supported in this browser. Paste notes or use Chrome/Edge.", "error");
+          return;
+        }
+
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = navigator.language || "en-US";
+
+        let finalText = "";
+
+        recognition.onstart = () => {
+          listening = true;
+          finalText = "";
+          $("#startListening").disabled = true;
+          $("#stopListening").disabled = false;
+          setVoiceStatus("Listening... speak naturally, then click Stop.", "listening");
+        };
+
+        recognition.onresult = event => {
+          let interimText = "";
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const text = event.results[index][0].transcript.trim();
+            if (event.results[index].isFinal) {
+              finalText += `${text}. `;
+            } else {
+              interimText = text;
+            }
+          }
+          setVoiceStatus(interimText ? `Listening... ${interimText}` : "Listening... capturing meeting audio.", "listening");
+        };
+
+        recognition.onerror = event => {
+          listening = false;
+          $("#startListening").disabled = false;
+          $("#stopListening").disabled = true;
+          setVoiceStatus(`Audio transcription stopped: ${event.error}.`, "error");
+        };
+
+        recognition.onend = () => {
+          const captured = finalText.trim();
+          listening = false;
+          $("#startListening").disabled = false;
+          $("#stopListening").disabled = true;
+          if (captured) {
+            appendTranscript(captured);
+            setVoiceStatus("Audio captured and added to the transcript box.");
+          } else {
+            setVoiceStatus("Audio stopped. No final speech was captured.");
+          }
+        };
+      }
+
+      function startListening() {
+        if (!recognition || listening) return;
+        try {
+          recognition.start();
+        } catch (error) {
+          setVoiceStatus(`Could not start audio transcription: ${error.message}`, "error");
+        }
+      }
+
+      function stopListening() {
+        if (recognition && listening) recognition.stop();
+      }
+
       function render(entry) {
         const result = entry.result;
         $("#mTasks").textContent = result.actions.length;
@@ -1092,6 +1195,8 @@ Blocker: client has not shared access to the knowledge base.`
       });
 
       $("#extract").addEventListener("click", processTranscript);
+      $("#startListening").addEventListener("click", startListening);
+      $("#stopListening").addEventListener("click", stopListening);
       $("#saveWebhook").addEventListener("click", () => {
         webhookUrl = $("#webhookUrl").value.trim();
         if (webhookUrl) {
@@ -1108,6 +1213,7 @@ Blocker: client has not shared access to the knowledge base.`
       });
       $("#exportCsv").addEventListener("click", exportTasksCsv);
       $("#clear").addEventListener("click", () => {
+        stopListening();
         $("#transcript").value = "";
         activeId = null;
         $("#mTasks").textContent = "0";
@@ -1115,10 +1221,12 @@ Blocker: client has not shared access to the knowledge base.`
         $("#mRisks").textContent = "0";
         $("#mDecisions").textContent = "0";
         $("#exportCsv").disabled = true;
+        setVoiceStatus("Audio input uses your browser microphone when available.");
         $("#result").innerHTML = `<span class="status">Ready</span><h3>Extraction result</h3><p class="summary">Paste a transcript to generate a task board, decision log, risk list, and follow-up summary.</p>`;
         renderHistory();
       });
 
+      setupSpeechRecognition();
       updateEndpointStatus();
       renderHistory();
     </script>

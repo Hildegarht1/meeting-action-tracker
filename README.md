@@ -20,6 +20,7 @@ Teams often leave meetings with vague notes and no clear ownership. ActionFlow t
 ## Features
 
 - transcript input
+- browser microphone transcription
 - sample meeting notes
 - extracted action board
 - decisions and risks
