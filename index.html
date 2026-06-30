@@ -739,7 +739,7 @@ Blocker: client has not shared access to the knowledge base.`
 
       function ownerFrom(line) {
         const patterns = [
-          /^([A-Z][a-z]+)\s+(?:will|owns|needs|has to|should|is responsible)/,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Z][a-z]+)\s+(?:will|owns|needs|needs to|has to|should|is responsible)/i,
           /(?:owner|assigned to):?\s*([A-Z][a-z]+)/i,
           /([A-Z][a-z]+)\s+owns/i
         ];
@@ -751,19 +751,32 @@ Blocker: client has not shared access to the knowledge base.`
       }
 
       function dueFrom(line) {
-        const match = line.match(/\b(by|before|due|on)\s+([A-Za-z]+day|tomorrow|next week|next [A-Za-z]+|[A-Z][a-z]+\s+\d{1,2})/i);
-        return match ? match[2] : "No date";
+        const match = line.match(/\b(by|before|due|on)\s+(the end of the week|end of the week|[A-Za-z]+day|tomorrow|next week|next [A-Za-z]+|[A-Z][a-z]+\s+\d{1,2})/i);
+        if (match) return match[2];
+        const looseMatch = line.match(/\b(tomorrow|next week|next [A-Za-z]+|the end of the week|end of the week)\b/i);
+        return looseMatch ? looseMatch[1] : "No date";
       }
 
       function priorityFrom(line) {
         const lower = line.toLowerCase();
-        if (/(blocker|risk|urgent|delay|missing|cannot|failed)/.test(lower)) return "high";
+        if (/(blocker|risk|urgent|delay|missing|cannot|can't|failed|work fast|waiting|immediate attention)/.test(lower)) return "high";
         if (/(should|needs|confirm|review)/.test(lower)) return "medium";
         return "low";
       }
 
       function cleanTask(line) {
-        return line.replace(/^[-*]\s*/, "").replace(/^(decision|risk|blocker):\s*/i, "").trim();
+        return line
+          .replace(/^[-*]\s*/, "")
+          .replace(/^(so|and|then|also|okay|ok)\s+/i, "")
+          .replace(/^(decision|risk|blocker):\s*/i, "")
+          .trim();
+      }
+
+      function titleFromTranscript(text) {
+        const firstLine = text.split(/\n/).find(Boolean)?.trim() || "";
+        if (firstLine.endsWith(":") && firstLine.length <= 80) return firstLine.replace(/:$/, "");
+        if (firstLine.length && firstLine.length <= 56 && !/[.!?]/.test(firstLine)) return firstLine;
+        return `Voice meeting notes - ${new Date().toLocaleDateString([], { month: "short", day: "numeric" })}`;
       }
 
       function extract(text) {
@@ -775,11 +788,11 @@ Blocker: client has not shared access to the knowledge base.`
 
         for (const line of sentences) {
           const lower = line.toLowerCase();
-          if (/^decision:|decision\b|decided\b/.test(lower)) {
+          if (/^decision:|decision\b|decided\b|decide on|we have to decide|we need to decide/.test(lower)) {
             decisions.push(cleanTask(line));
             continue;
           }
-          if (/^risk:|risk\b|may delay|might delay|concern/.test(lower)) {
+          if (/^risk:|risk\b|high risk|may delay|might delay|concern|cannot keep|can't keep|waiting/.test(lower)) {
             risks.push({ text: cleanTask(line), severity: priorityFrom(line) });
             continue;
           }
@@ -787,7 +800,7 @@ Blocker: client has not shared access to the knowledge base.`
             blockers.push({ text: cleanTask(line), owner: ownerFrom(line), severity: priorityFrom(line) });
             continue;
           }
-          if (/\b(will|owns|needs to|has to|should|responsible|prepare|send|finalize|update|confirm|share|complete)\b/i.test(line)) {
+          if (/\b(will|owns|needs|needs to|has to|should|responsible|prepare|send|finalize|update|confirm|share|complete|organise|organize|submit|launch)\b/i.test(line)) {
             actions.push({
               task: cleanTask(line),
               owner: ownerFrom(line),
@@ -1090,7 +1103,7 @@ Blocker: client has not shared access to the knowledge base.`
       async function processTranscript() {
         const text = $("#transcript").value.trim();
         if (!text) return;
-        const title = text.split(/\n/).find(Boolean)?.replace(/:$/, "") || "Meeting notes";
+        const title = titleFromTranscript(text);
         let result;
         let mode = "local";
 
