@@ -1119,13 +1119,15 @@ Blocker: client has not shared access to the knowledge base.`
         recognition.lang = navigator.language || "en-US";
 
         let finalText = "";
+        let lastInterimText = "";
 
         recognition.onstart = () => {
           listening = true;
           finalText = "";
+          lastInterimText = "";
           $("#startListening").disabled = true;
           $("#stopListening").disabled = false;
-          setVoiceStatus("Listening... speak naturally, then click Stop.", "listening");
+          setVoiceStatus("Listening... speak naturally and pause briefly before clicking Stop.", "listening");
         };
 
         recognition.onresult = event => {
@@ -1138,6 +1140,7 @@ Blocker: client has not shared access to the knowledge base.`
               interimText = text;
             }
           }
+          if (interimText) lastInterimText = interimText;
           setVoiceStatus(interimText ? `Listening... ${interimText}` : "Listening... capturing meeting audio.", "listening");
         };
 
@@ -1149,7 +1152,7 @@ Blocker: client has not shared access to the knowledge base.`
         };
 
         recognition.onend = () => {
-          const captured = finalText.trim();
+          const captured = finalText.trim() || lastInterimText.trim();
           listening = false;
           $("#startListening").disabled = false;
           $("#stopListening").disabled = true;
