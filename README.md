@@ -1,58 +1,93 @@
 # ActionFlow Meeting Tracker
 
-ActionFlow is a hosted automation tool that converts messy meeting notes into accountable follow-up work.
+ActionFlow is a hosted meeting automation tool that converts messy meeting notes or browser-transcribed audio into structured follow-up work. It extracts action items, owners, deadlines, decisions, risks, summaries, and exportable task data from a single dashboard.
 
-It extracts:
+Live app:
 
-- action items
-- owners
-- deadlines
-- decisions
-- risks and blockers
-- structured JSON for automation tools
-- meeting summaries
-- manager-ready follow-up summaries
-- CSV exports for tasks
+```text
+https://hildegarht1.github.io/meeting-action-tracker/
+```
 
-## Why It Is Useful
+## What It Does
 
-Teams often leave meetings with vague notes and no clear ownership. ActionFlow turns free-form transcripts into an operational follow-up board that can feed task tools, reminders, and reporting.
+- accepts typed meeting notes
+- captures speech through the browser microphone when supported
+- separates meeting title from transcript content
+- extracts action items, owners, deadlines, decisions, risks, and blockers
+- generates a meeting summary and key follow-up summary
+- sends transcripts to a Make webhook when live mode is configured
+- uses Make AI Agents for AI-assisted summary generation
+- logs processed meetings to Google Sheets
+- returns the result to the dashboard for review
+- exports action items as CSV
 
-## Features
+## Tools Used
 
-- transcript input
-- meeting title field
-- browser microphone transcription
-- sample meeting notes
-- extracted action board
-- decisions and risks
-- request history
-- structured JSON
-- CSV task export
-- optional Make webhook integration
-- Make AI summary route
-- Google Sheets meeting log
-- visible automation workflow
+```text
+GitHub Pages
+HTML/CSS/JavaScript
+Web Speech API
+Make
+Make AI Agents
+Make Webhooks
+Google Sheets
+Browser localStorage
+```
+
+## How To Demo
+
+1. Open the hosted dashboard.
+2. Enter a meeting title.
+3. Paste meeting notes or click **Start listening** to capture speech.
+4. Click **Extract actions**.
+5. Review the meeting summary, key follow-up, action board, decisions, risks, and JSON output.
+6. Export action items as CSV if needed.
+7. In live mode, confirm the Make run and Google Sheets log row.
 
 ## Automation Architecture
 
 ```text
-React/static dashboard
+ActionFlow dashboard
 -> Make custom webhook
--> Make AI agent writes follow-up summary
--> Dashboard verifies actions, owners, deadlines, decisions, and risks
--> Google Sheets stores meeting history
--> webhook response updates the dashboard
+-> Make AI Agent
+-> Google Sheets meeting log
+-> Webhook response
+-> Dashboard result view
 ```
 
-## Current Status
+The dashboard also has a local extraction mode, so the interface remains usable even when the Make webhook is not configured.
 
-The dashboard works as a self-contained app and can also send meeting notes to a Make custom webhook when a scenario URL is configured. The connected workflow can log processed meetings to Google Sheets before returning the result to the dashboard.
+## Google Sheets Log
 
-The Make scenario design is documented in:
+Suggested sheet name:
 
 ```text
-workflows/make-scenario-design.md
+ActionFlow Meeting Logs
+```
+
+Suggested tab name:
+
+```text
+Meetings
+```
+
+Suggested columns:
+
+```text
+created_at
+meeting_title
+source
+action_count
+decision_count
+risk_count
+blocker_count
+follow_up_summary
+summary
+actions_json
+decisions_json
+risks_json
+blockers_json
+raw_transcript
 ```
 
 ## Webhook Payload
@@ -76,7 +111,41 @@ The expected response is:
   "risks": [],
   "blockers": [],
   "meetingSummary": "Human-readable meeting summary",
-  "followUpSummary": "Summary text",
+  "followUpSummary": "Key follow-up summary",
   "summary": "Short extraction summary"
 }
 ```
+
+## Make Scenario
+
+Recommended scenario flow:
+
+```text
+Custom webhook
+-> Set AI prompt variable
+-> Make AI Agents: Run an agent
+-> Google Sheets: Add a row
+-> Webhooks: Webhook response
+```
+
+The Make scenario design is documented in:
+
+```text
+workflows/make-scenario-design.md
+```
+
+## Test Checklist
+
+- Text transcript produces action items.
+- Audio transcript is added to the transcript box in Chrome or Edge.
+- Owners are detected from natural phrases such as "Sarah will..." and "Michelle needs to...".
+- Decisions and risks appear in their tabs.
+- Make webhook mode returns a dashboard result.
+- Google Sheets receives a meeting log row.
+- CSV export downloads the action board.
+
+## Notes
+
+Browser speech recognition support varies by browser. Chrome and Edge currently provide the most reliable support for the Web Speech API.
+
+The dashboard includes transcript verification logic so action items, owners, deadlines, decisions, and risks can still be shown even if an external AI response returns an incomplete structured payload.
