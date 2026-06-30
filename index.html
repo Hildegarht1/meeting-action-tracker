@@ -103,6 +103,33 @@
         letter-spacing: 0;
       }
 
+      .side-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 22px 0 10px;
+      }
+
+      .side-title-row .side-title {
+        margin: 0;
+      }
+
+      .clear-history {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        padding: 6px 9px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .clear-history:hover {
+        border-color: #ef4444;
+        color: #b91c1c;
+      }
+
       .history {
         display: grid;
         gap: 8px;
@@ -677,7 +704,10 @@
             <span>Meeting action tracker</span>
           </div>
         </div>
-        <div class="side-title">Meeting history</div>
+        <div class="side-title-row">
+          <div class="side-title">Meeting history</div>
+          <button class="clear-history" id="clearHistory" type="button">Clear</button>
+        </div>
         <div class="history" id="history"></div>
       </aside>
 
@@ -1415,6 +1445,14 @@ Blocker: client has not shared access to the knowledge base.`
         updateEndpointStatus();
       });
       $("#exportCsv").addEventListener("click", exportTasksCsv);
+      $("#clearHistory").addEventListener("click", () => {
+        if (!history.length) return;
+        if (!confirm("Clear saved meeting history from this browser?")) return;
+        history = [];
+        activeId = null;
+        localStorage.removeItem("actionFlowHistory");
+        renderHistory();
+      });
       $("#clear").addEventListener("click", () => {
         stopListening();
         $("#meetingTitle").value = "";
