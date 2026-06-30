@@ -12,6 +12,7 @@ https://hildegarht1.github.io/meeting-action-tracker/
 
 - accepts typed meeting notes
 - captures speech through the browser microphone when supported
+- supports English and German browser audio transcription
 - separates meeting title from transcript content
 - extracts action items, owners, deadlines, decisions, risks, and blockers
 - generates a meeting summary and key follow-up summary
@@ -38,11 +39,12 @@ Browser localStorage
 
 1. Open the hosted dashboard.
 2. Enter a meeting title.
-3. Paste meeting notes or click **Start listening** to capture speech.
-4. Click **Extract actions**.
-5. Review the meeting summary, key follow-up, action board, decisions, risks, and JSON output.
-6. Export action items as CSV if needed.
-7. In live mode, confirm the Make run and Google Sheets log row.
+3. Choose English or German audio if using the microphone.
+4. Paste meeting notes or click **Start listening** to capture speech.
+5. Click **Extract actions**.
+6. Review the meeting summary, key follow-up, action board, decisions, risks, and JSON output.
+7. Export action items as CSV if needed.
+8. In live mode, confirm the Make run and Google Sheets log row.
 
 Sample spoken input:
 
@@ -149,6 +151,14 @@ The Make scenario design is documented in:
 
 ```text
 workflows/make-scenario-design.md
+```
+
+## Project Documentation
+
+A fuller project write-up is available in:
+
+```text
+docs/project-documentation.md
 ```
 
 ## Test Checklist
