@@ -223,10 +223,10 @@
       }
 
       .hero {
-        padding: 34px;
+        padding: 34px 34px 26px;
         border-bottom: 1px solid var(--line);
         background:
-          linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.96)),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.9) 54%, rgba(255, 255, 255, 0.72) 100%),
           url("https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1800&q=80");
         background-size: cover;
         background-position: center;
@@ -244,6 +244,10 @@
         display: flex;
         gap: 14px;
         flex-wrap: wrap;
+        border: 1px solid rgba(217, 224, 234, 0.72);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+        padding: 8px 10px;
       }
 
       nav a {
@@ -251,6 +255,18 @@
         text-decoration: none;
         font-weight: 750;
         font-size: 14px;
+      }
+
+      .hero-kicker {
+        display: inline-flex;
+        margin-bottom: 16px;
+        border: 1px solid #bed5f0;
+        border-radius: 999px;
+        background: #eff6ff;
+        padding: 6px 10px;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 850;
       }
 
       .hero h2 {
@@ -268,11 +284,40 @@
         font-size: 18px;
       }
 
+      .proof-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        gap: 10px;
+        max-width: 900px;
+        margin-top: 26px;
+      }
+
+      .proof-pill {
+        border: 1px solid rgba(217, 224, 234, 0.9);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.86);
+        padding: 11px;
+      }
+
+      .proof-pill b {
+        display: block;
+        font-size: 13px;
+      }
+
+      .proof-pill span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
       .workspace {
-        padding: 24px 34px 42px;
+        padding: 28px 34px 46px;
         display: grid;
         grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
         gap: 20px;
+        background:
+          linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
       }
 
       .panel,
@@ -291,9 +336,57 @@
         padding: 18px;
       }
 
+      .panel {
+        border-top: 4px solid var(--blue);
+      }
+
+      .result {
+        border-top: 4px solid var(--green);
+      }
+
+      .card:nth-child(1) {
+        border-top: 4px solid var(--ink);
+      }
+
+      .card:nth-child(2) {
+        border-top: 4px solid var(--green);
+      }
+
+      .card:nth-child(3) {
+        border-top: 4px solid var(--violet);
+      }
+
+      .card:nth-child(4) {
+        border-top: 4px solid var(--amber);
+      }
+
       h3 {
         margin: 0 0 12px;
         font-size: 18px;
+      }
+
+      .panel-head,
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .panel-head h3,
+      .card-head h3 {
+        margin: 0;
+      }
+
+      .panel-head span,
+      .card-head span {
+        border-radius: 999px;
+        background: var(--soft);
+        padding: 5px 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
       }
 
       textarea,
@@ -318,6 +411,7 @@
       textarea {
         min-height: 220px;
         resize: vertical;
+        line-height: 1.45;
       }
 
       .endpoint-form {
@@ -634,7 +728,7 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         padding: 12px;
-        background: white;
+        background: #fbfcfe;
       }
 
       .metric b {
@@ -645,6 +739,22 @@
       .metric span {
         color: var(--muted);
         font-size: 12px;
+      }
+
+      .metric:nth-child(1) {
+        background: #f1f5ff;
+      }
+
+      .metric:nth-child(2) {
+        background: #eef9f5;
+      }
+
+      .metric:nth-child(3) {
+        background: #fff7ed;
+      }
+
+      .metric:nth-child(4) {
+        background: #f6f4ff;
       }
 
       .workflow-section {
@@ -799,6 +909,10 @@
           padding: 24px 20px;
         }
 
+        .proof-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .how-grid {
           grid-template-columns: 1fr;
         }
@@ -809,6 +923,23 @@
 
         .input-row {
           grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .proof-strip {
+          grid-template-columns: 1fr;
+        }
+
+        .panel-head,
+        .card-head,
+        .status-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .status-row strong {
+          text-align: left;
         }
       }
     </style>
@@ -842,17 +973,27 @@
               <a href="README.md">Docs</a>
             </nav>
           </div>
+          <span class="hero-kicker">Meeting operations dashboard</span>
           <h2>Turn messy meeting notes into accountable work.</h2>
           <p>
             Paste a transcript or rough meeting notes. ActionFlow extracts tasks, owners, deadlines,
             decisions, risks, and a follow-up summary that teams can actually use.
           </p>
+          <div class="proof-strip">
+            <div class="proof-pill"><b>Voice or text</b><span>Browser capture plus pasted notes</span></div>
+            <div class="proof-pill"><b>Owner clarity</b><span>Workload grouped by person</span></div>
+            <div class="proof-pill"><b>Quality score</b><span>Missing owners and dates flagged</span></div>
+            <div class="proof-pill"><b>Live route</b><span>Make webhook and Sheets logging</span></div>
+          </div>
         </section>
 
         <section class="workspace" id="tracker">
           <div>
             <div class="panel">
-              <h3>Meeting transcript</h3>
+              <div class="panel-head">
+                <h3>Meeting transcript</h3>
+                <span>Input</span>
+              </div>
               <div class="input-row">
                 <input id="meetingTitle" type="text" placeholder="Meeting title, e.g. Weekly product operations meeting" />
               </div>
@@ -881,7 +1022,10 @@
 
           <div class="right-col">
             <div class="card">
-              <h3>Dashboard</h3>
+              <div class="card-head">
+                <h3>Dashboard</h3>
+                <span>Live counts</span>
+              </div>
               <div class="metrics">
                 <div class="metric"><b id="mTasks">0</b><span>action items</span></div>
                 <div class="metric"><b id="mOwners">0</b><span>owners</span></div>
@@ -890,7 +1034,10 @@
               </div>
             </div>
             <div class="card">
-              <h3>Workflow status</h3>
+              <div class="card-head">
+                <h3>Workflow status</h3>
+                <span>Run state</span>
+              </div>
               <div class="status-grid">
                 <div class="status-row"><span>Input</span><strong id="inputStatus">Text or audio</strong></div>
                 <div class="status-row"><span>AI route</span><strong id="aiStatus">Local mode</strong></div>
@@ -899,7 +1046,10 @@
               </div>
             </div>
             <div class="card">
-              <h3>Automation endpoint</h3>
+              <div class="card-head">
+                <h3>Automation endpoint</h3>
+                <span>Make</span>
+              </div>
               <p class="summary">Connect a Make custom webhook to process notes through a live scenario. Leave it empty to use local extraction.</p>
               <div class="endpoint-form">
                 <input id="webhookUrl" type="url" placeholder="https://hook.eu2.make.com/..." />
@@ -911,7 +1061,10 @@
               </div>
             </div>
             <div class="card">
-              <h3>Operational value</h3>
+              <div class="card-head">
+                <h3>Operational value</h3>
+                <span>Why it matters</span>
+              </div>
               <div class="list">
                 <div class="item">Shows structured extraction from messy text.</div>
                 <div class="item">Maps naturally to Make, Google Sheets, Slack, Teams, and task tools.</div>
