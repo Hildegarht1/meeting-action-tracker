@@ -465,6 +465,55 @@
         margin-bottom: 4px;
       }
 
+      .quality-grid {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 12px;
+        align-items: stretch;
+        margin: 12px 0;
+      }
+
+      .quality-score,
+      .quality-detail {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        padding: 12px;
+      }
+
+      .quality-score b {
+        display: block;
+        font-size: 36px;
+        line-height: 1;
+      }
+
+      .quality-score span,
+      .quality-detail span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .quality-detail ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      .copy-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .copy-row button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        padding: 7px 9px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
       .tabs {
         display: flex;
         flex-wrap: wrap;
@@ -489,6 +538,12 @@
 
       .list {
         display: grid;
+        gap: 10px;
+      }
+
+      .owner-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 10px;
       }
 
@@ -748,6 +803,10 @@
           grid-template-columns: 1fr;
         }
 
+        .quality-grid {
+          grid-template-columns: 1fr;
+        }
+
         .input-row {
           grid-template-columns: 1fr;
         }
@@ -947,6 +1006,7 @@ Blocker: client has not shared access to the knowledge base.`
       let activeId = null;
       let recognition = null;
       let listening = false;
+      let userStoppedListening = true;
       let historyCollapsed = localStorage.getItem("actionFlowHistoryCollapsed") === "true";
 
       const $ = selector => document.querySelector(selector);
@@ -979,23 +1039,48 @@ Blocker: client has not shared access to the knowledge base.`
       }
 
       function splitSentences(text) {
-        return text
+        const splitNameGuard = "(?!also\\b|and\\b|then\\b|funding\\b|decision\\b|risk\\b|blocker\\b|next\\b|all\\b)";
+        const normalized = text
+          .replace(/\s+/g, " ")
+          .replace(/\.{2,}/g, ".")
+          .replace(/\bumm+\b|\bum+\b/gi, "")
+          .trim();
+        const base = normalized
           .split(/\n|(?<=[.!?])\s+/)
           .map(line => line.trim())
           .filter(Boolean);
+        const clauses = [];
+        for (const line of base) {
+          const parts = line
+            .split(new RegExp(`\\s+(?=(?:and|then|also)?\\s*${splitNameGuard}[A-Z][a-z]+\\s+(?:also\\s+)?(?:will|needs|need|has to|have to|should|must|owns|is responsible|is up to|can|could)\\b)`, "i"))
+            .flatMap(part => part.split(/\s+(?=(?:and|then|also)?\s*(?:we|they|everyone|the team)\s+(?:need|needs|have to|has to|must|should|will)\b)/i))
+            .map(part => part.trim())
+            .filter(Boolean);
+          clauses.push(...parts);
+        }
+        return clauses;
       }
 
       function ownerFrom(line) {
+        const ignoredOwners = new Set(["and", "then", "also", "so", "we", "they", "the", "this", "it", "funding", "decision", "risk", "blocker", "next"]);
+        if (/\b(everyone|the team|we all|all of us)\b/i.test(line) && /\b(task|brainstorm|own|responsible|have to|need to|must|should|will)\b/i.test(line)) {
+          return "Everyone";
+        }
         const patterns = [
-          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+)\s+(?:also\s+)?(?:will|owns|needs|needs to|has to|should|is responsible)/i,
-          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+),?\s+(?:kindly|please)\s+(?:look|check|confirm|review|send|prepare|organise|organize)/i,
-          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+)\s+is\s+(?:up to|responsible for|assigned to)/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+)\s+(?:also\s+)?(?:will|owns|needs|needs to|need to|has to|have to|should|must|is responsible|can|could)\b/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+),?\s+(?:kindly|please)\s+(?:look|check|confirm|review|send|prepare|organise|organize|finalize|finalise|update|share|submit|explore)/i,
+          /^(?:so|and|then|also|okay|ok)?\s*([A-Za-z]+)\s+is\s+(?:up to|responsible for|assigned to)\s+(?:the\s+)?(?:task|tax)?/i,
           /(?:owner|assigned to):?\s*([A-Za-z]+)/i,
-          /([A-Za-z]+)\s+owns/i
+          /([A-Za-z]+)\s+owns/i,
+          /\b(?:task|action|follow-up)\s+for\s+([A-Za-z]+|everyone|the team)\b/i,
+          /\b([A-Za-z]+)\s+(?:also\s+)?(?:has to|have to|needs to|need to|should|must|will)\b/i
         ];
         for (const pattern of patterns) {
           const match = line.match(pattern);
-          if (match) return normalizeOwner(match[1]);
+          if (match) {
+            const owner = match[1].toLowerCase();
+            if (!ignoredOwners.has(owner)) return normalizeOwner(match[1]);
+          }
         }
         return "Unassigned";
       }
@@ -1025,6 +1110,86 @@ Blocker: client has not shared access to the knowledge base.`
           .replace(/^(so|and|then|also|okay|ok)\s+/i, "")
           .replace(/^(decision|risk|blocker):\s*/i, "")
           .trim();
+      }
+
+      function buildMissingInfo(actions, decisions, risks, blockers) {
+        const missing = [];
+        actions.forEach(action => {
+          if (action.owner === "Unassigned") missing.push(`Owner missing for: ${action.task}`);
+          if (action.due === "No date") missing.push(`Due date missing for: ${action.task}`);
+        });
+        if (risks.length && !actions.some(action => /confirm|decide|resolve|review|follow/i.test(action.task))) {
+          missing.push("Risk follow-up needs an assigned resolution action.");
+        }
+        if (blockers.length && blockers.some(item => item.owner === "Unassigned")) {
+          missing.push("At least one blocker needs a named owner.");
+        }
+        if (!decisions.length) missing.push("No decision was recorded.");
+        return missing.slice(0, 6);
+      }
+
+      function buildQuality(actions, decisions, risks, blockers) {
+        const ownerCoverage = actions.length
+          ? actions.filter(action => action.owner !== "Unassigned").length / actions.length
+          : 0;
+        const dueCoverage = actions.length
+          ? actions.filter(action => action.due !== "No date").length / actions.length
+          : 0;
+        const riskCoverage = risks.length || blockers.length ? 1 : 0.75;
+        const decisionCoverage = decisions.length ? 1 : 0.65;
+        const score = Math.round((ownerCoverage * 35) + (dueCoverage * 25) + (riskCoverage * 20) + (decisionCoverage * 20));
+        const label = score >= 80 ? "Strong follow-up" : score >= 60 ? "Needs light cleanup" : "Needs clarification";
+        return {
+          score,
+          label,
+          ownerCoverage: `${actions.filter(action => action.owner !== "Unassigned").length}/${actions.length || 0}`,
+          dueCoverage: `${actions.filter(action => action.due !== "No date").length}/${actions.length || 0}`
+        };
+      }
+
+      function groupActionsByOwner(actions) {
+        return actions.reduce((groups, action) => {
+          const owner = action.owner || "Unassigned";
+          groups[owner] = groups[owner] || [];
+          groups[owner].push(action);
+          return groups;
+        }, {});
+      }
+
+      function buildFollowUpMessage(title, actions, decisions, risks, blockers) {
+        const lines = [`Hi team, here are the follow-ups from ${title}:`, ""];
+        if (actions.length) {
+          lines.push("Actions:");
+          actions.forEach(action => {
+            lines.push(`- ${action.task} | Owner: ${action.owner} | Due: ${action.due}`);
+          });
+        }
+        if (decisions.length) {
+          lines.push("", "Decisions:");
+          decisions.forEach(decision => lines.push(`- ${decision}`));
+        }
+        const riskItems = [...risks, ...blockers];
+        if (riskItems.length) {
+          lines.push("", "Risks / blockers:");
+          riskItems.forEach(item => lines.push(`- ${item.text}`));
+        }
+        lines.push("", "Please confirm any missing owners or dates so the follow-up list can be finalized.");
+        return lines.join("\n");
+      }
+
+      function enrichResult(result, title = "this meeting") {
+        const actions = result.actions || [];
+        const decisions = result.decisions || [];
+        const risks = result.risks || [];
+        const blockers = result.blockers || [];
+        const missingInfo = buildMissingInfo(actions, decisions, risks, blockers);
+        return {
+          ...result,
+          missingInfo,
+          quality: buildQuality(actions, decisions, risks, blockers),
+          ownerWorkload: groupActionsByOwner(actions),
+          followUpMessage: buildFollowUpMessage(title, actions, decisions, risks, blockers)
+        };
       }
 
       function titleFromTranscript(text) {
@@ -1058,7 +1223,7 @@ Blocker: client has not shared access to the knowledge base.`
         return typeof value === "string" && /no transcript provided|no meeting content provided|unable to extract/i.test(value);
       }
 
-      function extract(text) {
+      function extract(text, title = "this meeting") {
         const sentences = splitSentences(text);
         const actions = [];
         const decisions = [];
@@ -1079,7 +1244,7 @@ Blocker: client has not shared access to the knowledge base.`
             blockers.push({ text: cleanTask(line), owner: ownerFrom(line), severity: priorityFrom(line) });
             continue;
           }
-          if (/\b(will|owns|needs|needs to|has to|should|responsible|prepare|send|finalize|finalise|update|confirm|share|complete|organise|organize|submit|launch|look into|explore|brainstorm)\b/i.test(line)) {
+          if (/\b(will|owns|needs|need to|needs to|has to|have to|must|should|responsible|please|kindly|could you|can you|prepare|send|finalize|finalise|update|confirm|share|complete|organise|organize|submit|launch|look into|explore|brainstorm)\b/i.test(line)) {
             actions.push({
               task: cleanTask(line),
               owner: ownerFrom(line),
@@ -1099,7 +1264,7 @@ Blocker: client has not shared access to the knowledge base.`
           highPriority ? `${highPriority} high-priority follow-up${highPriority === 1 ? "" : "s"} need attention` : "no high-priority follow-ups detected"
         ].join(". ") + ".";
 
-        return {
+        return enrichResult({
           actions,
           decisions,
           risks,
@@ -1107,11 +1272,11 @@ Blocker: client has not shared access to the knowledge base.`
           meetingSummary: buildMeetingSummary(actions, decisions, risks, blockers),
           followUpSummary,
           summary: `Extracted ${actions.length} action items, ${decisions.length} decisions, ${risks.length} risks, and ${blockers.length} blockers from the meeting notes.`
-        };
+        }, title);
       }
 
-      function normalizeBackendResult(data, text) {
-        const local = extract(text);
+      function normalizeBackendResult(data, text, title = "this meeting") {
+        const local = extract(text, title);
         data = unwrapWebhookData(data);
 
         const makeActions = asArray(data.actions);
@@ -1130,7 +1295,7 @@ Blocker: client has not shared access to the knowledge base.`
         const meetingSummary = hasNoTranscriptMessage(makeMeetingSummary) ? buildMeetingSummary(actions, decisions, risks, blockers) : makeMeetingSummary || buildMeetingSummary(actions, decisions, risks, blockers);
         const summary = hasNoTranscriptMessage(makeSummary) ? `Processed through Make and verified ${actions.length} action item${actions.length === 1 ? "" : "s"} from the transcript.` : makeSummary || `Processed through Make and returned ${actions.length} action item${actions.length === 1 ? "" : "s"}.`;
 
-        return {
+        return enrichResult({
           actions: actions.map(action => ({
             task: action.task || action.text || "Follow-up item",
             owner: action.owner || "Unassigned",
@@ -1152,7 +1317,7 @@ Blocker: client has not shared access to the knowledge base.`
           followUpSummary,
           summary,
           extractionSource: usedTranscriptFallback ? "Make summary with transcript-verified arrays" : "Make structured response"
-        };
+        }, title);
       }
 
       function unwrapWebhookData(data) {
@@ -1271,9 +1436,11 @@ Blocker: client has not shared access to the knowledge base.`
 
         let finalText = "";
         let lastInterimText = "";
+        let autoRestartAttempts = 0;
 
         recognition.onstart = () => {
           listening = true;
+          userStoppedListening = false;
           finalText = "";
           lastInterimText = "";
           $("#startListening").disabled = true;
@@ -1291,11 +1458,17 @@ Blocker: client has not shared access to the knowledge base.`
               interimText = text;
             }
           }
+          autoRestartAttempts = 0;
           if (interimText) lastInterimText = interimText;
           setVoiceStatus(interimText ? `Listening... ${interimText}` : "Listening... capturing meeting audio.", "listening");
         };
 
         recognition.onerror = event => {
+          if (event.error === "no-speech") {
+            setVoiceStatus("Still listening... I did not catch speech yet. Move closer to the microphone or speak a little louder.", "listening");
+            return;
+          }
+          userStoppedListening = true;
           listening = false;
           $("#startListening").disabled = false;
           $("#stopListening").disabled = true;
@@ -1305,6 +1478,27 @@ Blocker: client has not shared access to the knowledge base.`
         recognition.onend = () => {
           const captured = finalText.trim() || lastInterimText.trim();
           listening = false;
+          if (!userStoppedListening && autoRestartAttempts < 3) {
+            if (captured) {
+              appendTranscript(captured);
+              const language = detectTranscriptLanguage(captured);
+              setVoiceStatus(`Captured ${language.label} audio. Continuing to listen...`, "listening");
+            } else {
+              autoRestartAttempts += 1;
+              setVoiceStatus("Still listening... no clear speech captured yet.", "listening");
+            }
+            setTimeout(() => {
+              if (!userStoppedListening && recognition) {
+                try {
+                  recognition.lang = getSpeechLanguageForCurrentNotes();
+                  recognition.start();
+                } catch (error) {
+                  setVoiceStatus(`Could not restart audio transcription: ${error.message}`, "error");
+                }
+              }
+            }, 350);
+            return;
+          }
           $("#startListening").disabled = false;
           $("#stopListening").disabled = true;
           if (captured) {
@@ -1320,6 +1514,7 @@ Blocker: client has not shared access to the knowledge base.`
       function startListening() {
         if (!recognition || listening) return;
         try {
+          userStoppedListening = false;
           recognition.lang = getSpeechLanguageForCurrentNotes();
           recognition.start();
         } catch (error) {
@@ -1328,6 +1523,7 @@ Blocker: client has not shared access to the knowledge base.`
       }
 
       function stopListening() {
+        userStoppedListening = true;
         if (recognition && listening) recognition.stop();
       }
 
@@ -1343,8 +1539,10 @@ Blocker: client has not shared access to the knowledge base.`
 
         const tabs = [
           ["actions", `Actions (${result.actions.length})`],
+          ["owners", "Owners"],
           ["decisions", `Decisions (${result.decisions.length})`],
           ["risks", `Risks (${result.risks.length + result.blockers.length})`],
+          ["followup", "Follow-up"],
           ["json", "JSON"]
         ];
 
@@ -1352,6 +1550,21 @@ Blocker: client has not shared access to the knowledge base.`
           <span class="status">${modeLabel(entry.mode)}</span>
           <h3>${entry.title}</h3>
           <p class="summary">${result.summary}</p>
+          <div class="quality-grid">
+            <div class="quality-score">
+              <b>${result.quality?.score ?? 0}%</b>
+              <span>${result.quality?.label || "Follow-up quality"}</span>
+            </div>
+            <div class="quality-detail">
+              <strong>Action Quality Check</strong>
+              <span>Owners assigned: ${result.quality?.ownerCoverage || "0/0"} | Due dates assigned: ${result.quality?.dueCoverage || "0/0"}</span>
+              ${
+                result.missingInfo?.length
+                  ? `<ul>${result.missingInfo.map(item => `<li>${item}</li>`).join("")}</ul>`
+                  : `<ul><li>All critical follow-up details are present.</li></ul>`
+              }
+            </div>
+          </div>
           <div class="summary-box">
             <strong>Meeting Summary</strong>
             ${result.meetingSummary}
@@ -1371,6 +1584,14 @@ Blocker: client has not shared access to the knowledge base.`
           });
         });
         renderTab(entry);
+        $("#copyFollowUp")?.addEventListener("click", async () => {
+          await navigator.clipboard.writeText(result.followUpMessage || "");
+          $("#copyFollowUp").textContent = "Copied";
+          setTimeout(() => {
+            const button = $("#copyFollowUp");
+            if (button) button.textContent = "Copy";
+          }, 1400);
+        });
       }
 
       function renderTab(entry) {
@@ -1384,6 +1605,17 @@ Blocker: client has not shared access to the knowledge base.`
             </div>
           `).join("") : `<div class="item">No action items detected.</div>`;
         }
+        if (activeTab === "owners") {
+          const groups = result.ownerWorkload || {};
+          const owners = Object.keys(groups);
+          html = owners.length ? `<div class="owner-grid">${owners.map(owner => `
+            <div class="item">
+              <strong>${owner}</strong>
+              <div class="meta"><span class="pill">${groups[owner].length} action${groups[owner].length === 1 ? "" : "s"}</span></div>
+              <ul>${groups[owner].map(action => `<li>${action.task} <span class="pill">Due: ${action.due}</span></li>`).join("")}</ul>
+            </div>
+          `).join("")}</div>` : `<div class="item">No owner workload available.</div>`;
+        }
         if (activeTab === "decisions") {
           html = result.decisions.length ? result.decisions.map(item => `<div class="item"><strong>${item}</strong></div>`).join("") : `<div class="item">No decisions detected.</div>`;
         }
@@ -1394,6 +1626,14 @@ Blocker: client has not shared access to the knowledge base.`
               <div class="item-head"><strong>${item.text}</strong><span class="pill ${item.severity}">${item.severity}</span></div>
             </div>
           `).join("") : `<div class="item">No risks or blockers detected.</div>`;
+        }
+        if (activeTab === "followup") {
+          html = `
+            <div class="item">
+              <div class="copy-row"><strong>Team follow-up message</strong><button id="copyFollowUp" type="button">Copy</button></div>
+              <pre style="white-space:pre-wrap;margin:10px 0 0;color:#1f2937">${result.followUpMessage || "No follow-up message available."}</pre>
+            </div>
+          `;
         }
         if (activeTab === "json") {
           html = `<pre style="white-space:pre-wrap;overflow:auto;background:#0f1720;color:#e8edf5;padding:14px;border-radius:8px">${JSON.stringify(result, null, 2)}</pre>`;
@@ -1425,10 +1665,10 @@ Blocker: client has not shared access to the knowledge base.`
             });
 
             if (!response.ok) throw new Error(`Make returned ${response.status}`);
-            result = normalizeBackendResult(await readWebhookResponse(response), text);
+            result = normalizeBackendResult(await readWebhookResponse(response), text, title);
             mode = "make";
           } catch (error) {
-            result = extract(text);
+            result = extract(text, title);
             result.webhookError = error.message || "Unknown webhook error";
             result.summary = `${result.summary} Live automation was unavailable, so ActionFlow verified the tasks directly from the transcript.`;
             mode = "fallback";
@@ -1436,7 +1676,7 @@ Blocker: client has not shared access to the knowledge base.`
             $("#modeStatus").textContent = `Live route unavailable; transcript verified locally`;
           }
         } else {
-          result = extract(text);
+          result = extract(text, title);
         }
 
         const entry = {
