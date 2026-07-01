@@ -54,6 +54,14 @@
         grid-template-columns: 320px minmax(0, 1fr);
       }
 
+      .app.history-collapsed {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .app.history-collapsed aside {
+        display: none;
+      }
+
       aside {
         position: sticky;
         top: 0;
@@ -69,6 +77,18 @@
         align-items: center;
         gap: 12px;
         margin-bottom: 24px;
+      }
+
+      .brand-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .brand-row .brand {
+        margin-bottom: 0;
       }
 
       .mark {
@@ -128,6 +148,46 @@
       .clear-history:hover {
         border-color: #ef4444;
         color: #b91c1c;
+      }
+
+      .icon-button,
+      .history-toggle {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        color: var(--muted);
+        font-weight: 850;
+      }
+
+      .icon-button {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .icon-button:hover,
+      .history-toggle:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+
+      .history-toggle {
+        position: fixed;
+        top: 18px;
+        left: 18px;
+        z-index: 20;
+        display: none;
+        padding: 10px 13px;
+        box-shadow: var(--shadow);
+      }
+
+      .app.history-collapsed + .history-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
       }
 
       .history {
@@ -695,14 +755,17 @@
     </style>
   </head>
   <body>
-    <div class="app">
+    <div class="app" id="app">
       <aside>
-        <div class="brand">
-          <div class="mark">AF</div>
-          <div>
-            <h1>ActionFlow</h1>
-            <span>Meeting action tracker</span>
+        <div class="brand-row">
+          <div class="brand">
+            <div class="mark">AF</div>
+            <div>
+              <h1>ActionFlow</h1>
+              <span>Meeting action tracker</span>
+            </div>
           </div>
+          <button class="icon-button" id="closeHistory" type="button" aria-label="Close meeting history">x</button>
         </div>
         <div class="side-title-row">
           <div class="side-title">Meeting history</div>
@@ -853,6 +916,7 @@
         </footer>
       </main>
     </div>
+    <button class="history-toggle" id="openHistory" type="button">History</button>
 
     <script>
       const samples = {
@@ -883,8 +947,15 @@ Blocker: client has not shared access to the knowledge base.`
       let activeId = null;
       let recognition = null;
       let listening = false;
+      let historyCollapsed = localStorage.getItem("actionFlowHistoryCollapsed") === "true";
 
       const $ = selector => document.querySelector(selector);
+
+      function setHistoryCollapsed(collapsed) {
+        historyCollapsed = collapsed;
+        $("#app").classList.toggle("history-collapsed", historyCollapsed);
+        localStorage.setItem("actionFlowHistoryCollapsed", String(historyCollapsed));
+      }
 
       function getBrowserSpeechLanguage() {
         const languages = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
@@ -1443,6 +1514,8 @@ Blocker: client has not shared access to the knowledge base.`
       $("#extract").addEventListener("click", processTranscript);
       $("#startListening").addEventListener("click", startListening);
       $("#stopListening").addEventListener("click", stopListening);
+      $("#closeHistory").addEventListener("click", () => setHistoryCollapsed(true));
+      $("#openHistory").addEventListener("click", () => setHistoryCollapsed(false));
       $("#saveWebhook").addEventListener("click", () => {
         webhookUrl = $("#webhookUrl").value.trim();
         if (webhookUrl) {
@@ -1486,6 +1559,7 @@ Blocker: client has not shared access to the knowledge base.`
       });
 
       setupSpeechRecognition();
+      setHistoryCollapsed(historyCollapsed);
       updateEndpointStatus();
       renderHistory();
     </script>
